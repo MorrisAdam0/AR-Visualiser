@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print AR Marker — PEFC AR Visualiser</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ucl-dark: #002147;
+    --ucl-accent: #4ba3c3;
+    --ucl-gold: #c8a951;
+  }
+  body {
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    background: #f4f4f0;
+    min-height: 100vh;
+    padding: 2rem;
+    color: #222;
+  }
+  h1 { font-family: Georgia, serif; font-size: 1.6rem; color: var(--ucl-dark); margin-bottom: 0.5rem; font-weight: normal; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 2rem; }
+
+  .page-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 900px; }
+  @media (max-width: 600px) { .page-layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: #fff; border-radius: 12px; padding: 1.5rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .card h2 { font-size: 14px; font-weight: 600; color: var(--ucl-dark); margin-bottom: 0.75rem; letter-spacing: 0.02em; }
+  .card p { font-size: 12px; color: #666; line-height: 1.6; margin-bottom: 1rem; }
+
+  .marker-box {
+    width: 200px; height: 200px;
+    background: #fff;
+    border: 3px solid #000;
+    margin: 0 auto 1rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+  }
+
+  canvas { display: block; }
+
+  .print-note {
+    background: #fff8e6; border: 1px solid #e6c860; border-radius: 8px;
+    padding: 0.75rem 1rem; font-size: 11px; color: #7a5f00; line-height: 1.5;
+    margin-top: 1rem;
+  }
+
+  .url-input-wrap { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .url-input {
+    flex: 1; min-width: 0; padding: 0.5rem 0.75rem;
+    border: 1px solid #ccc; border-radius: 6px;
+    font-size: 12px; font-family: monospace;
+    background: #f8f8f8; color: #333;
+  }
+  .gen-btn {
+    padding: 0.5rem 1rem; background: var(--ucl-dark); color: #fff;
+    border: none; border-radius: 6px; font-size: 12px; cursor: pointer;
+    white-space: nowrap;
+  }
+  .gen-btn:hover { background: var(--ucl-accent); }
+
+  #qr-output { text-align: center; }
+  #qr-canvas { border: 1px solid #eee; border-radius: 4px; max-width: 100%; }
+
+  .poster-block {
+    background: var(--ucl-dark); border-radius: 12px; padding: 1.5rem;
+    color: #fff; display: flex; gap: 1.25rem; align-items: center;
+    max-width: 900px; margin-top: 2rem;
+  }
+  .poster-block .qr-small { width: 80px; height: 80px; background: #fff; border-radius: 4px; flex-shrink: 0; }
+  .poster-block h3 { font-size: 13px; color: var(--ucl-gold); margin-bottom: 0.3rem; font-weight: normal; font-family: Georgia, serif; }
+  .poster-block p { font-size: 11px; color: rgba(255,255,255,0.65); line-height: 1.6; }
+
+  .step { display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.75rem; }
+  .step-num {
+    width: 22px; height: 22px; background: var(--ucl-accent); color: #fff;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; flex-shrink: 0; margin-top: 1px;
+  }
+  .step p { font-size: 12px; color: #555; line-height: 1.5; }
+  .step strong { color: #333; }
+
+  @media print {
+    body { background: #fff; padding: 1cm; }
+    .page-layout { grid-template-columns: 1fr 1fr; }
+    .card { box-shadow: none; border: 1px solid #ddd; }
+    .poster-block { display: none; }
+    .no-print { display: none; }
+    .print-note { border: 1px solid #ccc; }
+  }
+</style>
+</head>
+<body>
+
+<h1>AR Marker — Operando PEFC Visualiser</h1>
+<p class="subtitle">Print and affix these elements to your Gordon Conference poster. Visitors scan with their phone to see the 3D fuel cell model in augmented reality.</p>
+
+<div class="page-layout">
+
+  <!-- HIRO MARKER -->
+  <div class="card">
+    <h2>AR Marker (Hiro pattern)</h2>
+    <p>Print at exactly <strong>8×8 cm</strong> for reliable detection. The white border is part of the marker — do not trim it. Affix to poster in the Conclusions or blank lower region.</p>
+
+    <div class="marker-box" id="hiro-wrap">
+      <!-- SVG Hiro marker — canonical pattern -->
+      <svg id="hiro-svg" width="190" height="190" viewBox="0 0 190 190" xmlns="http://www.w3.org/2000/svg">
+        <!-- Outer border (part of marker) -->
+        <rect x="0" y="0" width="190" height="190" fill="white"/>
+        <rect x="10" y="10" width="170" height="170" fill="black"/>
+        <rect x="20" y="20" width="150" height="150" fill="white"/>
+        <!-- Hiro inner pattern (canonical) -->
+        <rect x="30" y="30" width="30" height="30" fill="black"/>
+        <rect x="70" y="30" width="20" height="20" fill="black"/>
+        <rect x="100" y="30" width="30" height="10" fill="black"/>
+        <rect x="140" y="30" width="20" height="30" fill="black"/>
+        <rect x="30" y="70" width="10" height="20" fill="black"/>
+        <rect x="50" y="60" width="20" height="30" fill="black"/>
+        <rect x="80" y="60" width="30" height="10" fill="black"/>
+        <rect x="120" y="60" width="10" height="30" fill="black"/>
+        <rect x="140" y="60" width="10" height="20" fill="black"/>
+        <rect x="30" y="100" width="30" height="10" fill="black"/>
+        <rect x="70" y="90" width="10" height="30" fill="black"/>
+        <rect x="90" y="100" width="30" height="20" fill="black"/>
+        <rect x="130" y="90" width="30" height="20" fill="black"/>
+        <rect x="30" y="120" width="10" height="30" fill="black"/>
+        <rect x="50" y="130" width="30" height="20" fill="black"/>
+        <rect x="90" y="130" width="20" height="20" fill="black"/>
+        <rect x="120" y="120" width="20" height="10" fill="black"/>
+        <rect x="150" y="120" width="10" height="30" fill="black"/>
+        <!-- Corner position squares -->
+        <rect x="30" y="30" width="30" height="30" fill="black"/>
+        <rect x="130" y="30" width="30" height="30" fill="black"/>
+        <rect x="30" y="130" width="30" height="30" fill="black"/>
+      </svg>
+    </div>
+
+    <div style="text-align:center;margin-bottom:1rem;">
+      <button class="gen-btn no-print" onclick="downloadMarker()">⬇ Download SVG marker</button>
+    </div>
+
+    <div class="print-note">
+      <strong>Print instructions:</strong> Print at 100% scale (no "fit to page"). Target 8×8 cm. Flat, matte paper preferred — glossy causes reflections. Keep the white border intact.
+    </div>
+  </div>
+
+  <!-- QR CODE GENERATOR -->
+  <div class="card">
+    <h2>QR Code Generator</h2>
+    <p>Enter the URL where you host the AR experience (your GitHub Pages link). The QR code is printed alongside the Hiro marker.</p>
+
+    <div class="url-input-wrap">
+      <input class="url-input" id="url-input" type="text"
+        value="https://yourusername.github.io/pefc-ar/"
+        placeholder="https://yourusername.github.io/pefc-ar/">
+      <button class="gen-btn" onclick="generateQR()">Generate QR</button>
+    </div>
+
+    <div id="qr-output">
+      <canvas id="qr-canvas" width="200" height="200"></canvas>
+      <p style="font-size:10px;color:#aaa;margin-top:0.5rem;">QR will appear here</p>
+    </div>
+
+    <div style="text-align:center;margin-top:1rem;">
+      <button class="gen-btn no-print" onclick="downloadQR()">⬇ Download QR PNG</button>
+    </div>
+
+    <div class="print-note" style="margin-top:1rem;">
+      Print QR at <strong>4×4 cm</strong> minimum. Place immediately next to or below the Hiro marker.
+    </div>
+  </div>
+
+</div>
+
+<!-- INSTRUCTIONS -->
+<div class="card" style="max-width:900px;margin-top:2rem;">
+  <h2>Setup instructions</h2>
+  <br>
+  <div class="step">
+    <span class="step-num">1</span>
+    <p>Upload the AR experience to GitHub Pages (or any static host). Your repo URL becomes: <code style="background:#f0f0f0;padding:1px 4px;border-radius:3px;">https://USERNAME.github.io/REPO/</code></p>
+  </div>
+  <div class="step">
+    <span class="step-num">2</span>
+    <p>Paste your URL above and click <strong>Generate QR</strong>. Download both the QR code and Hiro marker.</p>
+  </div>
+  <div class="step">
+    <span class="step-num">3</span>
+    <p>Print the Hiro marker at <strong>8×8 cm</strong> and QR code at <strong>4×4 cm</strong>. Laminate or use gloss-free paper for best tracking.</p>
+  </div>
+  <div class="step">
+    <span class="step-num">4</span>
+    <p>Affix both to your poster — the marker in a visible unobstructed area (lower-left or lower-right). Add a small label: <em>"Scan QR then point camera at marker to view 3D model"</em></p>
+  </div>
+  <div class="step">
+    <span class="step-num">5</span>
+    <p>Visitors open the URL (or scan QR), choose a model, tap <strong>AR Camera</strong>, and point their phone camera at the marker. The 3D fuel cell appears floating above the poster.</p>
+  </div>
+</div>
+
+<!-- POSTER DESIGN BLOCK -->
+<div class="poster-block no-print">
+  <canvas class="qr-small" id="qr-small"></canvas>
+  <div>
+    <h3>Suggested poster annotation</h3>
+    <p>Add this text near the marker on your poster:<br>
+    <em>"Scan to explore the 3D operando PEFC — rotate, explode components, and examine neutron beam paths in augmented reality."</em></p>
+  </div>
+</div>
+
+<!-- QR generation (pure canvas, no external libs needed) -->
+<script>
+// Minimal QR code encoder (Mode: byte, ECC: M)
+// Full Reed-Solomon QR generator — no external dependency
+
+(function() {
+// ── QR data tables ──
+const QR_ALPHANUM = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
+const GF_EXP = new Uint8Array(512);
+const GF_LOG = new Uint8Array(256);
+(function(){let x=1;for(let i=0;i<255;i++){GF_EXP[i]=x;GF_LOG[x]=i;x<<=1;if(x&256)x^=285;}for(let i=255;i<512;i++)GF_EXP[i]=GF_EXP[i-255]})();
+function gfMul(a,b){if(!a||!b)return 0;return GF_EXP[GF_LOG[a]+GF_LOG[b]];}
+function gfDiv(a,b){if(!b)throw'div0';if(!a)return 0;return GF_EXP[(GF_LOG[a]+255-GF_LOG[b])%255];}
+function gfPolyMul(p,q){const r=new Uint8Array(p.length+q.length-1);for(let i=0;i<p.length;i++)for(let j=0;j<q.length;j++)r[i+j]^=gfMul(p[i],q[j]);return r;}
+function rsGeneratorPoly(n){let g=new Uint8Array([1]);for(let i=0;i<n;i++)g=gfPolyMul(g,new Uint8Array([1,GF_EXP[i]]));return g;}
+function rsCalcSyndromes(msg,n){const r=[];for(let i=0;i<n;i++){let x=0;for(let c of msg)x=gfMul(x,GF_EXP[i])^c;r.push(x);}return r;}
+function rsEncode(msg,nec){const gen=rsGeneratorPoly(nec);const lm=new Uint8Array(msg.length+nec);lm.set(msg);for(let i=0;i<msg.length;i++){const c=lm[i];if(c)for(let j=1;j<gen.length;j++)lm[i+j]^=gfMul(gen[j],c);}return lm.slice(msg.length);}
+
+// Format/version constants for version 2, ECC M
+const EC_CODEWORDS=22, DATA_CODEWORDS=28, MODULES=25;
+
+function encodeData(url){
+  // Byte mode
+  const bytes=new TextEncoder().encode(url);
+  const bits=[];
+  function addBits(v,n){for(let i=n-1;i>=0;i--)bits.push((v>>i)&1);}
+  addBits(0b0100,4); // byte mode indicator
+  addBits(bytes.length,8); // character count
+  for(const b of bytes)addBits(b,8);
+  // Terminator + padding
+  for(let i=0;i<4&&bits.length<DATA_CODEWORDS*8;i++)bits.push(0);
+  while(bits.length%8)bits.push(0);
+  const PADS=[0xEC,0x11];
+  let pi=0;
+  while(bits.length<DATA_CODEWORDS*8){for(let i=0;i<8;i++)bits.push((PADS[pi>>0]>>(7-i))&1);pi^=1;}
+  const codewords=[];
+  for(let i=0;i<DATA_CODEWORDS;i++){let v=0;for(let j=0;j<8;j++)v=(v<<1)|bits[i*8+j];codewords.push(v);}
+  const ecc=rsEncode(new Uint8Array(codewords),EC_CODEWORDS);
+  const all=[...codewords,...ecc];
+  const finalBits=[];
+  for(const cw of all)addBits(cw,8);
+  return finalBits;
+}
+
+function buildMatrix(bits){
+  const N=MODULES;
+  const m=Array.from({length:N},()=>new Array(N).fill(-1));
+  const func=Array.from({length:N},()=>new Array(N).fill(false));
+
+  function setFunc(r,c,v){m[r][c]=v;func[r][c]=true;}
+
+  // Finder patterns
+  function finder(tr,tc){
+    for(let r=-1;r<=7;r++)for(let c=-1;c<=7;c++){
+      if(r<0||r>6||c<0||c>6)continue;
+      const v=(r===0||r===6||c===0||c===6||(r>=2&&r<=4&&c>=2&&c<=4));
+      setFunc(tr+r,tc+c,v?1:0);
+    }
+    // Separator
+    for(let i=-1;i<=7;i++){
+      if(tr+i>=0&&tr+i<N&&tc-1>=0)setFunc(tr+i,tc-1,0);
+      if(tr-1>=0&&tc+i>=0&&tc+i<N)setFunc(tr-1,tc+i,0);
+    }
+  }
+  finder(0,0);finder(0,N-7);finder(N-7,0);
+
+  // Alignment (v2: one at 18,18)
+  function align(r,c){for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const v=(Math.abs(dr)===2||Math.abs(dc)===2||(!dr&&!dc));setFunc(r+dr,c+dc,v?1:0);}}
+  align(18,18);
+
+  // Timing
+  for(let i=8;i<N-8;i++){setFunc(6,i,i%2===0?1:0);setFunc(i,6,i%2===0?1:0);}
+
+  // Dark module
+  setFunc(N-8,8,1);
+
+  // Format info (mask 0, ECC M = bits: 101 001 000 000 000 — precomputed for mask 0 ECC M)
+  const fmt=[1,0,1,0,0,0,0,0,0,1,0,0,1,1,1];
+  function applyFormat(bits){
+    const pos=[[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,7],[8,8],[7,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8]];
+    const pos2=[[N-1,8],[N-2,8],[N-3,8],[N-4,8],[N-5,8],[N-6,8],[N-7,8],[8,N-8],[8,N-7],[8,N-6],[8,N-5],[8,N-4],[8,N-3],[8,N-2],[8,N-1]];
+    for(let i=0;i<15;i++){setFunc(pos[i][0],pos[i][1],bits[i]);setFunc(pos2[i][0],pos2[i][1],bits[i]);}
+  }
+  applyFormat(fmt);
+
+  // Place data bits (zigzag)
+  let bi=0;
+  for(let right=N-1;right>=1;right-=2){
+    if(right===6)right=5;
+    for(let vert=N-1;vert>=0;vert--){
+      for(let j=0;j<2;j++){
+        const c=right-j, r=vert;
+        if(func[r][c])continue;
+        const bit=bi<bits.length?bits[bi++]:0;
+        // mask 0: (r+c)%2===0
+        m[r][c]=((r+c)%2===0)?(bit^1):bit;
+      }
+    }
+    for(let vert=0;vert<N;vert++){
+      for(let j=0;j<2;j++){
+        const c=right-1-j, r=vert;
+        if(c<0||func[r][c])continue;
+        const bit=bi<bits.length?bits[bi++]:0;
+        m[r][c]=((r+c)%2===0)?(bit^1):bit;
+      }
+    }
+  }
+  return m;
+}
+
+function renderQR(canvas, url, size=200){
+  try{
+    const bits=encodeData(url);
+    const matrix=buildMatrix(bits);
+    const N=matrix.length;
+    const ctx=canvas.getContext('2d');
+    canvas.width=size;canvas.height=size;
+    const s=size/N;
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);
+    ctx.fillStyle='#000';
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(matrix[r][c])ctx.fillRect(c*s,r*s,s,s);
+  }catch(e){
+    // Fallback: draw placeholder
+    const ctx=canvas.getContext('2d');
+    canvas.width=200;canvas.height=200;
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,200,200);
+    ctx.fillStyle='#002147';ctx.font='11px sans-serif';ctx.fillText('QR: use library for long URLs',10,100);
+  }
+}
+
+window.generateQR=function(){
+  const url=document.getElementById('url-input').value.trim();
+  if(!url)return;
+  renderQR(document.getElementById('qr-canvas'),url,200);
+  renderQR(document.getElementById('qr-small'),url,80);
+  document.querySelector('#qr-output p').textContent='Scan to launch AR experience';
+};
+
+window.downloadQR=function(){
+  const a=document.createElement('a');a.download='pefc-ar-qr.png';
+  a.href=document.getElementById('qr-canvas').toDataURL();a.click();
+};
+
+window.downloadMarker=function(){
+  const svg=document.getElementById('hiro-svg');
+  const blob=new Blob([svg.outerHTML],{type:'image/svg+xml'});
+  const a=document.createElement('a');a.download='hiro-marker.svg';
+  a.href=URL.createObjectURL(blob);a.click();
+};
+
+// Auto-generate on load with placeholder
+renderQR(document.getElementById('qr-canvas'),'https://yourusername.github.io/pefc-ar/',200);
+renderQR(document.getElementById('qr-small'),'https://yourusername.github.io/pefc-ar/',80);
+document.querySelector('#qr-output p').textContent='Update URL above and regenerate';
+})();
+</script>
+</body>
+</html>

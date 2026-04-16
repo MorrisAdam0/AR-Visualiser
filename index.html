@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Operando PEFC — AR Visualiser | UCL</title>
+
+<!-- A-Frame + AR.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ar.js@2.2.2/aframe/build/aframe-ar.js"></script>
+<!-- Three.js (bundled inside A-Frame, accessed via AFRAME.THREE) -->
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ucl-dark: #002147;
+    --ucl-mid: #003d7a;
+    --ucl-accent: #4ba3c3;
+    --ucl-gold: #c8a951;
+    --ucl-light: #e8f0f7;
+    --font-display: 'Georgia', 'Times New Roman', serif;
+    --font-body: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  }
+
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: var(--font-body); }
+
+  /* ── Landing screen ── */
+  #landing {
+    position: fixed; inset: 0; z-index: 1000;
+    background: linear-gradient(160deg, var(--ucl-dark) 0%, #001530 60%, #000 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 2rem 1.5rem;
+    transition: opacity 0.5s ease, pointer-events 0s 0.5s;
+  }
+  #landing.hidden { opacity: 0; pointer-events: none; }
+
+  .ucl-wordmark {
+    font-family: var(--font-display); font-size: 11px; letter-spacing: 0.25em;
+    color: var(--ucl-gold); text-transform: uppercase; margin-bottom: 2.5rem; opacity: 0.8;
+  }
+
+  .hero-title {
+    font-family: var(--font-display); font-size: clamp(1.4rem, 5vw, 2.1rem); font-weight: normal;
+    color: #fff; text-align: center; line-height: 1.3; margin-bottom: 0.5rem; max-width: 500px;
+  }
+  .hero-subtitle {
+    font-size: 13px; color: var(--ucl-accent); text-align: center; letter-spacing: 0.05em;
+    margin-bottom: 2.5rem; max-width: 420px; line-height: 1.6;
+  }
+
+  .model-select {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+    width: 100%; max-width: 480px; margin-bottom: 2rem;
+  }
+  .model-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 1rem 0.75rem; cursor: pointer; transition: all 0.2s;
+    text-align: left; color: #fff; position: relative; overflow: hidden;
+  }
+  .model-btn::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--ucl-accent), transparent);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .model-btn:hover::before, .model-btn.active::before { opacity: 0.15; }
+  .model-btn.active { border-color: var(--ucl-accent); }
+  .model-btn .icon { font-size: 1.6rem; margin-bottom: 0.5rem; display: block; }
+  .model-btn .label { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; display: block; margin-bottom: 2px; }
+  .model-btn .desc { font-size: 10px; color: rgba(255,255,255,0.5); display: block; line-height: 1.4; }
+
+  .mode-tabs {
+    display: flex; gap: 0.5rem; margin-bottom: 1.5rem; width: 100%; max-width: 480px;
+  }
+  .mode-tab {
+    flex: 1; padding: 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+    background: transparent; color: rgba(255,255,255,0.6); font-size: 12px; font-family: var(--font-body);
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .mode-tab.active { background: var(--ucl-accent); border-color: var(--ucl-accent); color: #fff; }
+
+  .launch-btn {
+    background: var(--ucl-accent); color: #fff; border: none; border-radius: 50px;
+    padding: 1rem 2.5rem; font-size: 15px; font-weight: 600; cursor: pointer;
+    letter-spacing: 0.04em; transition: all 0.2s; width: 100%; max-width: 300px;
+    box-shadow: 0 0 30px rgba(75,163,195,0.4);
+  }
+  .launch-btn:hover { transform: translateY(-1px); box-shadow: 0 0 40px rgba(75,163,195,0.6); }
+  .launch-btn:active { transform: scale(0.98); }
+
+  .info-footer {
+    position: absolute; bottom: 1.5rem; left: 0; right: 0;
+    text-align: center; font-size: 10px; color: rgba(255,255,255,0.25);
+    line-height: 1.6; padding: 0 1.5rem;
+  }
+
+  /* ── AR scene overlay UI ── */
+  #ar-ui {
+    position: fixed; inset: 0; z-index: 500;
+    pointer-events: none; display: none;
+  }
+  #ar-ui.active { display: block; }
+
+  #ar-header {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 1rem 1.25rem 0.75rem;
+    background: linear-gradient(to bottom, rgba(0,33,71,0.9), transparent);
+    pointer-events: none;
+  }
+  #ar-header h1 {
+    font-family: var(--font-display); font-size: 14px; color: #fff; font-weight: normal;
+    letter-spacing: 0.03em;
+  }
+  #ar-header p { font-size: 11px; color: var(--ucl-accent); margin-top: 2px; }
+
+  #ar-instructions {
+    position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,33,71,0.85); backdrop-filter: blur(10px);
+    border: 1px solid rgba(75,163,195,0.3); border-radius: 12px;
+    padding: 0.75rem 1.25rem; text-align: center; white-space: nowrap;
+    pointer-events: none;
+  }
+  #ar-instructions p { font-size: 12px; color: rgba(255,255,255,0.8); }
+  #ar-instructions small { font-size: 10px; color: var(--ucl-accent); display: block; margin-top: 2px; }
+
+  #ar-controls {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 1rem 1.25rem 2rem;
+    background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+    display: flex; gap: 0.6rem; align-items: flex-end;
+    pointer-events: all;
+  }
+
+  .ctrl-btn {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px; color: #fff; padding: 0.6rem 0.9rem; font-size: 11px;
+    font-family: var(--font-body); cursor: pointer; transition: all 0.15s;
+    backdrop-filter: blur(8px); flex: 1; text-align: center; line-height: 1.3;
+  }
+  .ctrl-btn:active { background: rgba(75,163,195,0.3); border-color: var(--ucl-accent); }
+  .ctrl-btn.active-ctrl { background: rgba(75,163,195,0.25); border-color: var(--ucl-accent); }
+  .ctrl-btn .btn-icon { display: block; font-size: 1.2rem; margin-bottom: 2px; }
+
+  #back-btn {
+    background: rgba(0,33,71,0.8); border: 1px solid rgba(75,163,195,0.4);
+    border-radius: 10px; color: var(--ucl-accent); padding: 0.6rem 1rem; font-size: 12px;
+    font-family: var(--font-body); cursor: pointer; pointer-events: all;
+    position: absolute; top: 1rem; right: 1.25rem;
+    backdrop-filter: blur(8px);
+  }
+
+  #info-panel {
+    position: absolute; bottom: 140px; left: 1rem; right: 1rem;
+    background: rgba(0,33,71,0.92); backdrop-filter: blur(12px);
+    border: 1px solid rgba(75,163,195,0.3); border-radius: 14px;
+    padding: 1rem 1.25rem; max-height: 200px; overflow-y: auto;
+    transform: translateY(20px); opacity: 0;
+    transition: all 0.3s ease; pointer-events: none;
+  }
+  #info-panel.visible {
+    transform: translateY(0); opacity: 1; pointer-events: all;
+  }
+  #info-panel h3 {
+    font-family: var(--font-display); font-size: 13px; color: var(--ucl-gold);
+    margin-bottom: 0.5rem; font-weight: normal;
+  }
+  #info-panel p { font-size: 11.5px; color: rgba(255,255,255,0.75); line-height: 1.6; }
+  #info-panel .spec-row {
+    display: flex; justify-content: space-between;
+    padding: 0.3rem 0; border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 11px;
+  }
+  #info-panel .spec-row:last-child { border-bottom: none; }
+  #info-panel .spec-key { color: rgba(255,255,255,0.45); }
+  #info-panel .spec-val { color: var(--ucl-accent); font-weight: 600; }
+
+  /* ── 3D viewer (non-AR mode) ── */
+  #viewer-3d {
+    position: fixed; inset: 0; z-index: 200;
+    background: radial-gradient(ellipse at 30% 30%, #001e40 0%, #000 70%);
+    display: none; flex-direction: column;
+  }
+  #viewer-3d.active { display: flex; }
+  #viewer-canvas { flex: 1; width: 100%; touch-action: none; }
+  #viewer-header {
+    padding: 1rem 1.25rem 0.5rem;
+    background: rgba(0,33,71,0.8);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #viewer-header h2 {
+    font-family: var(--font-display); font-size: 14px; color: #fff; font-weight: normal;
+  }
+  #viewer-footer {
+    padding: 0.75rem 1.25rem 1.5rem;
+    background: rgba(0,0,0,0.6);
+    display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;
+  }
+  .part-btn {
+    padding: 0.45rem 0.9rem; border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.2); background: transparent;
+    color: rgba(255,255,255,0.7); font-size: 11px; font-family: var(--font-body);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .part-btn.active { background: var(--ucl-accent); border-color: var(--ucl-accent); color: #fff; }
+  #explode-slider {
+    width: 100%; margin: 0.5rem 0;
+    -webkit-appearance: none; height: 3px;
+    background: rgba(255,255,255,0.15); border-radius: 2px; outline: none;
+  }
+  #explode-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px;
+    background: var(--ucl-accent); border-radius: 50%; cursor: pointer;
+  }
+  .slider-label { font-size: 10px; color: rgba(255,255,255,0.4); text-align: center; display: block; }
+
+  /* ── Marker guide ── */
+  #marker-guide {
+    position: fixed; inset: 0; z-index: 800;
+    background: rgba(0,0,0,0.92);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 2rem;
+  }
+  #marker-guide.active { display: flex; }
+  #marker-guide h2 { font-family: var(--font-display); color: #fff; margin-bottom: 1rem; font-weight: normal; }
+  #marker-guide p { font-size: 13px; color: rgba(255,255,255,0.6); text-align: center; max-width: 300px; margin-bottom: 1.5rem; line-height: 1.6; }
+  #marker-img { width: 200px; height: 200px; background: #fff; border-radius: 8px; padding: 10px; }
+  .close-guide {
+    margin-top: 1.5rem; color: var(--ucl-accent); background: none; border: 1px solid var(--ucl-accent);
+    border-radius: 8px; padding: 0.6rem 1.5rem; font-size: 13px; cursor: pointer; font-family: var(--font-body);
+  }
+
+  /* scan pulse animation */
+  @keyframes scanPulse {
+    0% { box-shadow: 0 0 0 0 rgba(75,163,195,0.4); }
+    70% { box-shadow: 0 0 0 20px rgba(75,163,195,0); }
+    100% { box-shadow: 0 0 0 0 rgba(75,163,195,0); }
+  }
+  .scan-pulse { animation: scanPulse 2s infinite; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.6s ease forwards; }
+  .fade-in-delay { animation: fadeIn 0.6s ease 0.2s forwards; opacity: 0; }
+  .fade-in-delay2 { animation: fadeIn 0.6s ease 0.4s forwards; opacity: 0; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     LANDING SCREEN
+════════════════════════════════════════ -->
+<div id="landing">
+  <p class="ucl-wordmark fade-in">University College London · Department of Chemistry</p>
+
+  <h1 class="hero-title fade-in-delay">Operando PEFC<br>AR Visualiser</h1>
+  <p class="hero-subtitle fade-in-delay">
+    Explore the modular neutron-transparent fuel cell in 3D.<br>
+    Rotate, explode, and interrogate every component.
+  </p>
+
+  <div class="mode-tabs fade-in-delay2">
+    <button class="mode-tab active" id="tab-ar" onclick="selectMode('ar')">📷 AR Camera</button>
+    <button class="mode-tab" id="tab-3d" onclick="selectMode('3d')">🔬 3D Viewer</button>
+  </div>
+
+  <div class="model-select fade-in-delay2">
+    <button class="model-btn active" onclick="selectModel(this,'full')" data-model="full">
+      <span class="icon">⚙️</span>
+      <span class="label">Full Assembly</span>
+      <span class="desc">Complete PEFC stack — all layers</span>
+    </button>
+    <button class="model-btn" onclick="selectModel(this,'exploded')" data-model="exploded">
+      <span class="icon">💥</span>
+      <span class="label">Exploded View</span>
+      <span class="desc">Each component separated</span>
+    </button>
+    <button class="model-btn" onclick="selectModel(this,'membrane')" data-model="membrane">
+      <span class="icon">🧬</span>
+      <span class="label">Membrane Detail</span>
+      <span class="desc">Nafion 117 microstructure</span>
+    </button>
+    <button class="model-btn" onclick="selectModel(this,'beam')" data-model="beam">
+      <span class="icon">⚡</span>
+      <span class="label">Beam Geometry</span>
+      <span class="desc">SANS / SAXS / QENS paths</span>
+    </button>
+  </div>
+
+  <button class="launch-btn scan-pulse fade-in-delay2" onclick="launch()" id="launch-btn">
+    Launch Experience
+  </button>
+
+  <p class="info-footer">
+    Morris, Jervis &amp; Foglia · Gordon Conference on Neutron Scattering 2025<br>
+    Point camera at the Hiro marker on the poster — or use 3D Viewer without AR<br>
+    <a href="marker.html" style="color:var(--ucl-accent);text-decoration:none;" target="_blank">View / print marker →</a>
+  </p>
+</div>
+
+<!-- ════════════════════════════════════════
+     AR SCENE (A-Frame)
+════════════════════════════════════════ -->
+<a-scene id="ar-scene"
+  embedded
+  arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+  vr-mode-ui="enabled: false"
+  renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true;"
+  style="display:none; position:fixed; inset:0; z-index:100;">
+
+  <a-assets>
+    <!-- Define materials inline -->
+  </a-assets>
+
+  <!-- Hiro marker (built-in AR.js marker) -->
+  <a-marker preset="hiro" id="hiro-marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
+    <a-entity id="ar-model-root" position="0 0 0" scale="0.035 0.035 0.035">
+    </a-entity>
+  </a-marker>
+
+  <!-- Custom pattern marker (for poster use — we'll use Hiro as fallback) -->
+  <a-marker type="pattern" url="markers/pattern-pefc.patt" id="custom-marker" smooth="true" smoothCount="8">
+    <a-entity id="ar-model-root2" position="0 0 0" scale="0.035 0.035 0.035">
+    </a-entity>
+  </a-marker>
+
+  <a-entity camera></a-entity>
+</a-scene>
+
+<!-- ════════════════════════════════════════
+     AR OVERLAY UI
+════════════════════════════════════════ -->
+<div id="ar-ui">
+  <div id="ar-header">
+    <h1 id="ar-model-title">Full Cell Assembly</h1>
+    <p id="ar-model-sub">Point at Hiro marker on the poster</p>
+  </div>
+
+  <button id="back-btn" onclick="goBack()">← Back</button>
+
+  <div id="ar-instructions">
+    <p>Point camera at the marker on the poster</p>
+    <small>Tap a component to learn more</small>
+  </div>
+
+  <div id="info-panel">
+    <h3 id="info-title">Component Info</h3>
+    <p id="info-desc"></p>
+    <div id="info-specs"></div>
+  </div>
+
+  <div id="ar-controls">
+    <button class="ctrl-btn" onclick="toggleExplode()">
+      <span class="btn-icon">💥</span>Explode
+    </button>
+    <button class="ctrl-btn" onclick="cycleModel(-1)">
+      <span class="btn-icon">←</span>Prev
+    </button>
+    <button class="ctrl-btn" onclick="cycleModel(1)">
+      <span class="btn-icon">→</span>Next
+    </button>
+    <button class="ctrl-btn" onclick="toggleAnnotations()">
+      <span class="btn-icon">🏷</span>Labels
+    </button>
+    <button class="ctrl-btn" onclick="showInfo()">
+      <span class="btn-icon">ℹ</span>Info
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     3D VIEWER (Three.js, no AR required)
+════════════════════════════════════════ -->
+<div id="viewer-3d">
+  <div id="viewer-header">
+    <h2 id="viewer-title">Full Cell Assembly</h2>
+    <button class="close-guide" onclick="goBack()" style="padding:0.4rem 0.8rem;font-size:12px;">← Back</button>
+  </div>
+  <canvas id="viewer-canvas"></canvas>
+  <div id="viewer-footer">
+    <div style="width:100%;padding:0 0.5rem;">
+      <span class="slider-label">Explode factor</span>
+      <input type="range" id="explode-slider" min="0" max="100" value="0" oninput="setExplodeFactor(this.value/100)">
+    </div>
+    <button class="part-btn active" onclick="selectPart(this,'all')" data-part="all">All</button>
+    <button class="part-btn" onclick="selectPart(this,'plate')" data-part="plate">Al Plates</button>
+    <button class="part-btn" onclick="selectPart(this,'gasket')" data-part="gasket">Gaskets</button>
+    <button class="part-btn" onclick="selectPart(this,'membrane')" data-part="membrane">Membrane</button>
+    <button class="part-btn" onclick="selectPart(this,'gdl')" data-part="gdl">GDL</button>
+    <button class="part-btn" onclick="selectPart(this,'beam')" data-part="beam">Beam paths</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MARKER GUIDE PAGE (standalone link)
+════════════════════════════════════════ -->
+<div id="marker-guide">
+  <h2>AR Marker</h2>
+  <p>Print or display this marker on your poster. The app will overlay the 3D fuel cell model when your camera detects it.</p>
+  <canvas id="marker-img" width="200" height="200"></canvas>
+  <p style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:0.5rem;">Hiro marker — standard AR.js pattern</p>
+  <button class="close-guide" onclick="document.getElementById('marker-guide').classList.remove('active')">Close</button>
+</div>
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════
+let currentMode = 'ar';
+let currentModel = 'full';
+let exploded = false;
+let showLabels = true;
+let currentModelIndex = 0;
+const models = ['full','exploded','membrane','beam'];
+const modelNames = {
+  full: 'Full Cell Assembly',
+  exploded: 'Exploded Component View',
+  membrane: 'Nafion Membrane Detail',
+  beam: 'Neutron Beam Geometry'
+};
+
+// 3D viewer state
+let threeRenderer, threeScene, threeCamera, animFrame;
+let cellParts = [];
+let explodeFactor = 0;
+let targetExplode = 0;
+let isDragging = false, lastX = 0, lastY = 0;
+let rotX = 0.3, rotY = 0.5;
+let pinchDist = 0;
+let viewerScale = 1;
+let selectedPart = 'all';
+let raycaster, mouse;
+let animateLights = true;
+
+// ════════════════════════════════════════════════════════════
+//  LANDING UI LOGIC
+// ════════════════════════════════════════════════════════════
+function selectMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + mode).classList.add('active');
+  document.getElementById('launch-btn').textContent =
+    mode === 'ar' ? 'Launch AR Camera' : 'Open 3D Viewer';
+}
+
+function selectModel(btn, model) {
+  currentModel = model;
+  document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function launch() {
+  document.getElementById('landing').classList.add('hidden');
+  if (currentMode === 'ar') {
+    startAR();
+  } else {
+    start3DViewer();
+  }
+}
+
+function goBack() {
+  document.getElementById('landing').classList.remove('hidden');
+  document.getElementById('ar-ui').classList.remove('active');
+  document.getElementById('viewer-3d').classList.remove('active');
+  document.getElementById('ar-scene').style.display = 'none';
+  if (animFrame) cancelAnimationFrame(animFrame);
+}
+
+// ════════════════════════════════════════════════════════════
+//  AR MODE
+// ════════════════════════════════════════════════════════════
+function startAR() {
+  document.getElementById('ar-scene').style.display = 'block';
+  document.getElementById('ar-ui').classList.add('active');
+  document.getElementById('ar-model-title').textContent = modelNames[currentModel];
+
+  // Build the AR 3D model into A-Frame scene
+  const root = document.getElementById('ar-model-root');
+  root.innerHTML = '';
+  buildARModel(root, currentModel);
+}
+
+function buildARModel(root, modelType) {
+  if (modelType === 'full' || modelType === 'exploded') {
+    buildARCellStack(root, modelType === 'exploded' ? 1.5 : 0);
+  } else if (modelType === 'membrane') {
+    buildARMembrane(root);
+  } else if (modelType === 'beam') {
+    buildARBeamGeometry(root);
+  }
+}
+
+// Build full PEFC cell stack in A-Frame entities
+function buildARCellStack(root, explodeFac) {
+  const layers = getCellLayers();
+  layers.forEach((layer, i) => {
+    const e = document.createElement('a-box');
+    e.setAttribute('position', `${layer.pos[0]} ${layer.pos[1] + (i - 3.5) * explodeFac} ${layer.pos[2]}`);
+    e.setAttribute('width', layer.w);
+    e.setAttribute('height', layer.h);
+    e.setAttribute('depth', layer.d);
+    e.setAttribute('color', layer.color);
+    e.setAttribute('opacity', layer.opacity || 1);
+    e.setAttribute('metalness', layer.metalness || 0.1);
+    e.setAttribute('roughness', layer.roughness || 0.7);
+    e.setAttribute('shadow', 'cast: true; receive: true');
+    e.setAttribute('class', 'clickable');
+    e.setAttribute('data-info', JSON.stringify(layer.info));
+    e.addEventListener('click', () => showComponentInfo(layer.info));
+    root.appendChild(e);
+
+    // Add label
+    if (layer.label) {
+      const label = document.createElement('a-text');
+      label.setAttribute('value', layer.label);
+      label.setAttribute('position', `${layer.w/2 + 0.5} ${layer.pos[1] + (i - 3.5) * explodeFac} 0`);
+      label.setAttribute('color', '#c8f0ff');
+      label.setAttribute('width', 3);
+      label.setAttribute('align', 'left');
+      label.setAttribute('font', 'https://cdn.aframe.io/fonts/Roboto-msdf.json');
+      label.setAttribute('class', 'ar-label');
+      root.appendChild(label);
+    }
+  });
+
+  // Add bolt/fasteners as cylinders
+  const boltPositions = [[2,0,2],[2,0,-2],[-2,0,2],[-2,0,-2]];
+  boltPositions.forEach(pos => {
+    const bolt = document.createElement('a-cylinder');
+    bolt.setAttribute('position', `${pos[0]} 0 ${pos[2]}`);
+    bolt.setAttribute('radius', 0.18);
+    bolt.setAttribute('height', 12);
+    bolt.setAttribute('color', '#888');
+    bolt.setAttribute('metalness', 0.8);
+    bolt.setAttribute('roughness', 0.2);
+    root.appendChild(bolt);
+  });
+}
+
+function buildARMembrane(root) {
+  // Nafion microstructure representation
+  const substrate = document.createElement('a-plane');
+  substrate.setAttribute('position', '0 0 0');
+  substrate.setAttribute('rotation', '-90 0 0');
+  substrate.setAttribute('width', 6); substrate.setAttribute('height', 6);
+  substrate.setAttribute('color', '#1a3a5c');
+  root.appendChild(substrate);
+
+  // Ionic channels as cylinders
+  for (let i = -3; i <= 3; i++) {
+    for (let j = -3; j <= 3; j++) {
+      if (Math.random() > 0.4) {
+        const chan = document.createElement('a-cylinder');
+        chan.setAttribute('position', `${i*0.8} 0.5 ${j*0.8}`);
+        chan.setAttribute('radius', 0.12);
+        chan.setAttribute('height', 1.5);
+        chan.setAttribute('color', '#4ba3c3');
+        chan.setAttribute('opacity', 0.85);
+        root.appendChild(chan);
+
+        // Proton sphere
+        const proton = document.createElement('a-sphere');
+        proton.setAttribute('position', `${i*0.8} ${0.3 + Math.random()*0.8} ${j*0.8}`);
+        proton.setAttribute('radius', 0.07);
+        proton.setAttribute('color', '#ffdd44');
+        root.appendChild(proton);
+      }
+    }
+  }
+
+  // Labels
+  const lbl = document.createElement('a-text');
+  lbl.setAttribute('value', 'Ionic channels\n(SO3- groups)');
+  lbl.setAttribute('position', '3.5 1 0');
+  lbl.setAttribute('color', '#4ba3c3');
+  lbl.setAttribute('width', 3);
+  root.appendChild(lbl);
+}
+
+function buildARBeamGeometry(root) {
+  // Cell box
+  const cell = document.createElement('a-box');
+  cell.setAttribute('position', '0 0 0');
+  cell.setAttribute('width', 4); cell.setAttribute('height', 4); cell.setAttribute('depth', 1.5);
+  cell.setAttribute('color', '#c8a951');
+  cell.setAttribute('opacity', 0.3);
+  cell.setAttribute('wireframe', true);
+  root.appendChild(cell);
+
+  // Neutron beam (blue cylinder)
+  const neutron = document.createElement('a-cylinder');
+  neutron.setAttribute('position', '-5 0 0');
+  neutron.setAttribute('rotation', '0 0 90');
+  neutron.setAttribute('radius', 0.15);
+  neutron.setAttribute('height', 5);
+  neutron.setAttribute('color', '#4ba3c3');
+  neutron.setAttribute('opacity', 0.8);
+  root.appendChild(neutron);
+
+  // X-ray beam (yellow)
+  const xray = document.createElement('a-cylinder');
+  xray.setAttribute('position', '-5 1 0');
+  xray.setAttribute('rotation', '0 0 90');
+  xray.setAttribute('radius', 0.1);
+  xray.setAttribute('height', 5);
+  xray.setAttribute('color', '#ffdd00');
+  xray.setAttribute('opacity', 0.8);
+  root.appendChild(xray);
+
+  // SANS detector (far right)
+  const detector = document.createElement('a-plane');
+  detector.setAttribute('position', '5 0 0');
+  detector.setAttribute('rotation', '0 90 0');
+  detector.setAttribute('width', 3); detector.setAttribute('height', 3);
+  detector.setAttribute('color', '#3366cc');
+  detector.setAttribute('opacity', 0.5);
+  root.appendChild(detector);
+
+  ['Neutron beam', 'X-ray beam', 'SANS detector'].forEach((label, i) => {
+    const t = document.createElement('a-text');
+    t.setAttribute('value', label);
+    t.setAttribute('position', `0 ${2.5 - i*0.6} 2`);
+    t.setAttribute('color', ['#4ba3c3','#ffdd00','#3366cc'][i]);
+    t.setAttribute('align', 'center');
+    t.setAttribute('width', 4);
+    root.appendChild(t);
+  });
+}
+
+function getCellLayers() {
+  return [
+    { label:'Al plate (anode)', w:4.5, h:0.5, d:4.5, pos:[0,5.5,0], color:'#8899aa', metalness:0.8, roughness:0.2,
+      info:{ title:'Aluminium Electrode Plate (Anode)', desc:'Precision-machined 6061 aluminium. Serpentine flow field channels machined into face. Neutron-transparent window region 1 mm thick.', specs:[['Material','Al 6061'],['Thickness','10 mm'],['Window','1 mm'],['Fitting','Swagelok ¼"']] }},
+    { label:'PTFE gasket', w:4.5, h:0.12, d:4.5, pos:[0,5,0], color:'#eef0ee', roughness:0.9,
+      info:{ title:'PTFE Gasket', desc:'Provides uniform compression across active area and electrical isolation between electrode plates.', specs:[['Material','PTFE'],['Thickness','0.3 mm'],['Function','Seal + isolation']] }},
+    { label:'GDL (anode)', w:3.8, h:0.18, d:3.8, pos:[0,4.5,0], color:'#222', roughness:0.95,
+      info:{ title:'Gas Diffusion Layer — Anode', desc:'Carbon fibre paper (Toray TGP-H-060) allowing gas transport to catalyst layer while conducting electrons.', specs:[['Material','Carbon paper'],['Thickness','0.19 mm'],['Porosity','~78%']] }},
+    { label:'Catalyst / MEA', w:3.8, h:0.08, d:3.8, pos:[0,4,0], color:'#2244aa', roughness:0.8,
+      info:{ title:'Anode Catalyst Layer', desc:'Pt/C catalyst ink deposited on Nafion membrane. H₂ → 2H⁺ + 2e⁻', specs:[['Catalyst','Pt/C 40%'],['Loading','0.2 mg/cm²']] }},
+    { label:'Nafion 117', w:3.8, h:0.18, d:3.8, pos:[0,3.5,0], color:'#4ba3c3', opacity:0.85, roughness:0.3,
+      info:{ title:'Nafion 117 PEM', desc:'Perfluorosulfonic acid membrane. Proton-conducting, electron-insulating. Phase-separated morphology with hydrophilic ionic channels. Key scattering subject.', specs:[['Membrane','Nafion 117'],['Thickness','183 μm'],['EW','1100 g/eq'],['d-spacing','~4 nm']] }},
+    { label:'Catalyst / MEA', w:3.8, h:0.08, d:3.8, pos:[0,3,0], color:'#882244', roughness:0.8,
+      info:{ title:'Cathode Catalyst Layer', desc:'Pt/C catalyst. O₂ + 4H⁺ + 4e⁻ → 2H₂O', specs:[['Catalyst','Pt/C 40%'],['Loading','0.4 mg/cm²']] }},
+    { label:'GDL (cathode)', w:3.8, h:0.18, d:3.8, pos:[0,2.5,0], color:'#222', roughness:0.95,
+      info:{ title:'Gas Diffusion Layer — Cathode', desc:'Same carbon paper. Critical for water management at cathode where product water forms.', specs:[['Material','Carbon paper'],['Thickness','0.19 mm']] }},
+    { label:'PTFE gasket', w:4.5, h:0.12, d:4.5, pos:[0,2,0], color:'#eef0ee', roughness:0.9,
+      info:{ title:'PTFE Gasket', desc:'Mirror of anode gasket.', specs:[['Material','PTFE'],['Function','Seal + isolation']] }},
+    { label:'Al plate (cathode)', w:4.5, h:0.5, d:4.5, pos:[0,1.5,0], color:'#8899aa', metalness:0.8, roughness:0.2,
+      info:{ title:'Aluminium Electrode Plate (Cathode)', desc:'Identical to anode plate. SAXS sealing ring sits on outer face to allow simultaneous X-ray measurement.', specs:[['Material','Al 6061'],['Feature','SAXS sealing ring'],['Contacts','4× Swagelok']] }},
+  ];
+}
+
+// ════════════════════════════════════════════════════════════
+//  3D VIEWER — Three.js
+// ════════════════════════════════════════════════════════════
+function start3DViewer() {
+  document.getElementById('viewer-3d').classList.add('active');
+  document.getElementById('viewer-title').textContent = modelNames[currentModel];
+
+  const canvas = document.getElementById('viewer-canvas');
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+
+  threeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  threeRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  threeRenderer.setSize(W, H);
+  threeRenderer.shadowMap.enabled = true;
+  threeRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  threeRenderer.toneMappingExposure = 1.2;
+
+  threeScene = new THREE.Scene();
+  threeScene.fog = new THREE.FogExp2(0x000d1a, 0.04);
+
+  threeCamera = new THREE.PerspectiveCamera(45, W / H, 0.1, 500);
+  threeCamera.position.set(12, 8, 16);
+  threeCamera.lookAt(0, 0, 0);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0x223355, 0.8);
+  threeScene.add(ambient);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  dirLight.position.set(15, 20, 10);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.set(2048, 2048);
+  threeScene.add(dirLight);
+
+  const fillLight = new THREE.PointLight(0x4ba3c3, 1.2, 80);
+  fillLight.position.set(-10, 5, 5);
+  threeScene.add(fillLight);
+
+  const rimLight = new THREE.PointLight(0xc8a951, 0.8, 60);
+  rimLight.position.set(0, -8, -12);
+  threeScene.add(rimLight);
+
+  // Grid
+  const grid = new THREE.GridHelper(40, 40, 0x1a3a5c, 0x0d1f33);
+  grid.position.y = -7;
+  threeScene.add(grid);
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  cellParts = [];
+  buildViewerModel(currentModel);
+  setupViewerControls(canvas);
+  threeAnimate();
+}
+
+function buildViewerModel(modelType) {
+  // Clear existing
+  cellParts.forEach(p => { if(p.mesh) threeScene.remove(p.mesh); });
+  cellParts = [];
+
+  if (modelType === 'full' || modelType === 'exploded') {
+    buildViewerCellStack();
+  } else if (modelType === 'membrane') {
+    buildViewerMembrane();
+  } else if (modelType === 'beam') {
+    buildViewerBeam();
+  }
+}
+
+function buildViewerCellStack() {
+  const layers = getCellLayers();
+
+  layers.forEach((layer, i) => {
+    const geo = new THREE.BoxGeometry(layer.w, layer.h, layer.d);
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(layer.color),
+      metalness: layer.metalness || 0.05,
+      roughness: layer.roughness || 0.7,
+      transparent: (layer.opacity && layer.opacity < 1),
+      opacity: layer.opacity || 1.0,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    const baseY = (i - layers.length/2) * layer.h + i * 0.05;
+    mesh.position.set(0, baseY, 0);
+    mesh.userData = { baseY, layer: layer, index: i };
+    threeScene.add(mesh);
+
+    // Thin edge highlight
+    const edges = new THREE.EdgesGeometry(geo);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x4ba3c3, transparent: true, opacity: 0.2 });
+    const lines = new THREE.LineSegments(edges, lineMat);
+    mesh.add(lines);
+
+    cellParts.push({ mesh, layer, baseY, type: layer.label.includes('Al') ? 'plate' : layer.label.includes('gasket') ? 'gasket' : layer.label.includes('Nafion') ? 'membrane' : layer.label.includes('GDL') ? 'gdl' : 'catalyst' });
+  });
+
+  // Add 4 bolt cylinders
+  const boltGeo = new THREE.CylinderGeometry(0.12, 0.12, 7, 12);
+  const boltMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.1 });
+  [[2.3,2.3],[2.3,-2.3],[-2.3,2.3],[-2.3,-2.3]].forEach(([x,z]) => {
+    const bolt = new THREE.Mesh(boltGeo, boltMat);
+    bolt.position.set(x, 0, z);
+    bolt.castShadow = true;
+    threeScene.add(bolt);
+
+    // Nut
+    const nutGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.2, 6);
+    const nut = new THREE.Mesh(nutGeo, boltMat);
+    nut.position.set(x, 3.3, z);
+    threeScene.add(nut);
+  });
+
+  // Swagelok fittings (cylinders on sides)
+  [[-2.6,0,0],[2.6,0,0],[0,0,-2.6],[0,0,2.6]].forEach(([x,y,z]) => {
+    const fitGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 12);
+    const fitMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb, metalness: 0.9, roughness: 0.1 });
+    const fit = new THREE.Mesh(fitGeo, fitMat);
+    fit.position.set(x + (x!==0?0.4:0), y, z + (z!==0?0.4:0));
+    if (z !== 0) fit.rotation.x = Math.PI/2;
+    else if (x !== 0) fit.rotation.z = Math.PI/2;
+    threeScene.add(fit);
+  });
+}
+
+function buildViewerMembrane() {
+  // Nafion microstructure — phase-separated morphology
+  const count = 12;
+  for (let i = 0; i < count; i++) {
+    for (let j = 0; j < count; j++) {
+      const x = (i - count/2) * 0.9 + (Math.random()-0.5)*0.3;
+      const z = (j - count/2) * 0.9 + (Math.random()-0.5)*0.3;
+
+      // Hydrophilic channel (ionic)
+      if (Math.random() > 0.45) {
+        const h = 0.5 + Math.random() * 1.5;
+        const geo = new THREE.CylinderGeometry(0.08 + Math.random()*0.06, 0.08, h, 8);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x4ba3c3, metalness: 0, roughness: 0.3, transparent: true, opacity: 0.8 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, h/2 - 0.5, z);
+        threeScene.add(mesh);
+        cellParts.push({ mesh, type: 'membrane' });
+
+        // Proton sphere traveling through
+        const proton = new THREE.Mesh(
+          new THREE.SphereGeometry(0.06, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0xffdd44, emissive: 0xffaa00, emissiveIntensity: 0.5 })
+        );
+        proton.position.set(x, Math.random()*h - 0.5, z);
+        proton.userData.speed = 0.003 + Math.random()*0.005;
+        proton.userData.maxY = h/2 - 0.5;
+        proton.userData.minY = -0.5;
+        threeScene.add(proton);
+        cellParts.push({ mesh: proton, type: 'membrane', isProton: true });
+      } else {
+        // Hydrophobic backbone region
+        const geo = new THREE.BoxGeometry(0.4, 0.3, 0.4);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.9 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, (Math.random()-0.5)*1.5, z);
+        mesh.rotation.y = Math.random()*Math.PI;
+        threeScene.add(mesh);
+        cellParts.push({ mesh, type: 'membrane' });
+      }
+    }
+  }
+
+  // Base plane
+  const base = new THREE.Mesh(
+    new THREE.PlaneGeometry(11, 11),
+    new THREE.MeshStandardMaterial({ color: 0x0a1628, roughness: 0.9, metalness: 0.1 })
+  );
+  base.rotation.x = -Math.PI/2;
+  base.position.y = -0.52;
+  threeScene.add(base);
+
+  threeCamera.position.set(8, 6, 10);
+  threeCamera.lookAt(0, 0, 0);
+}
+
+function buildViewerBeam() {
+  // Cell box (wireframe)
+  const cellGeo = new THREE.BoxGeometry(5, 5, 2);
+  const cellMat = new THREE.MeshStandardMaterial({ color: 0xc8a951, wireframe: true, opacity: 0.5, transparent: true });
+  const cellMesh = new THREE.Mesh(cellGeo, cellMat);
+  threeScene.add(cellMesh);
+
+  // Solid version beneath
+  const cellSolid = new THREE.Mesh(cellGeo,
+    new THREE.MeshStandardMaterial({ color: 0xc8a951, opacity: 0.08, transparent: true }));
+  threeScene.add(cellSolid);
+
+  // Neutron beam (blue) — SANS/SAXS transmission
+  const neutronMat = new THREE.MeshStandardMaterial({ color: 0x4ba3c3, emissive: 0x2266aa, emissiveIntensity: 0.5, transparent: true, opacity: 0.7 });
+  const nBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 14, 12), neutronMat);
+  nBeam.rotation.z = Math.PI/2;
+  nBeam.position.set(0, 0, 0);
+  threeScene.add(nBeam);
+  cellParts.push({ mesh: nBeam, type: 'beam' });
+
+  // X-ray beam (yellow)
+  const xMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, emissive: 0xffaa00, emissiveIntensity: 0.6, transparent: true, opacity: 0.7 });
+  const xBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 14, 12), xMat);
+  xBeam.rotation.z = Math.PI/2;
+  xBeam.position.set(0, 0.5, 0);
+  threeScene.add(xBeam);
+  cellParts.push({ mesh: xBeam, type: 'beam' });
+
+  // QENS beam (top-down / grazing) — green
+  const qMat = new THREE.MeshStandardMaterial({ color: 0x44cc88, emissive: 0x22aa66, emissiveIntensity: 0.4, transparent: true, opacity: 0.7 });
+  const qBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 12, 12), qMat);
+  qBeam.rotation.x = Math.PI/2;
+  qBeam.position.set(2, 2, 0);
+  threeScene.add(qBeam);
+  cellParts.push({ mesh: qBeam, type: 'beam' });
+
+  // Detectors
+  [[-8,0,0,'#4ba3c3','SANS'],[8,0,0,'#4ba3c3','SAXS'],[2,-6,0,'#44cc88','QENS']].forEach(([x,y,z,col,name]) => {
+    const det = new THREE.Mesh(
+      new THREE.BoxGeometry(2, 2, 0.2),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(col), opacity: 0.5, transparent: true })
+    );
+    det.position.set(x, y, z);
+    if (y !== 0) det.rotation.x = Math.PI/2;
+    threeScene.add(det);
+    cellParts.push({ mesh: det, type: 'beam' });
+  });
+
+  threeCamera.position.set(14, 10, 14);
+  threeCamera.lookAt(0, 0, 0);
+}
+
+// ── Animation loop ──
+function threeAnimate() {
+  animFrame = requestAnimationFrame(threeAnimate);
+
+  // Smooth explode
+  if (Math.abs(explodeFactor - targetExplode) > 0.001) {
+    explodeFactor += (targetExplode - explodeFactor) * 0.08;
+    updateExplode();
+  }
+
+  // Gentle auto-rotate when not dragging
+  if (!isDragging) {
+    rotY += 0.003;
+  }
+
+  // Animate protons in membrane view
+  cellParts.forEach(p => {
+    if (p.isProton) {
+      p.mesh.position.y += p.mesh.userData.speed;
+      if (p.mesh.position.y > p.mesh.userData.maxY) {
+        p.mesh.position.y = p.mesh.userData.minY;
+      }
+    }
+  });
+
+  // Apply rotation
+  if (cellParts.length) {
+    const pivot = new THREE.Group();
+    cellParts.forEach(p => {});
+  }
+
+  // Rotate scene root
+  threeScene.rotation.y = rotY;
+  threeScene.rotation.x = rotX;
+
+  threeRenderer.render(threeScene, threeCamera);
+}
+
+function updateExplode() {
+  cellParts.forEach(p => {
+    if (p.baseY !== undefined) {
+      const dir = p.baseY > 0 ? 1 : p.baseY < 0 ? -1 : 0;
+      p.mesh.position.y = p.baseY + dir * explodeFactor * 2.5 * Math.abs(p.baseY * 0.3 + 0.5);
+    }
+  });
+}
+
+function setExplodeFactor(v) {
+  targetExplode = v;
+}
+
+function selectPart(btn, part) {
+  selectedPart = part;
+  document.querySelectorAll('.part-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  cellParts.forEach(p => {
+    if (!p.mesh) return;
+    const show = part === 'all' || p.type === part || p.type === 'beam';
+    p.mesh.visible = show;
+    if (p.mesh.material) {
+      p.mesh.material.opacity = show ? (p.mesh.material.userData.baseOpacity || 1) : 0.05;
+      if (!show) p.mesh.material.transparent = true;
+    }
+  });
+}
+
+// ── Controls ──
+function setupViewerControls(canvas) {
+  // Mouse
+  canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+  canvas.addEventListener('mouseup', () => isDragging = false);
+  canvas.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    rotY += (e.clientX - lastX) * 0.01;
+    rotX += (e.clientY - lastY) * 0.01;
+    rotX = Math.max(-1.2, Math.min(1.2, rotX));
+    lastX = e.clientX; lastY = e.clientY;
+  });
+  canvas.addEventListener('wheel', e => {
+    threeCamera.position.multiplyScalar(1 + e.deltaY * 0.001);
+  });
+
+  // Touch
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
+    else if (e.touches.length === 2) {
+      isDragging = false;
+      pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    }
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', () => { isDragging = false; pinchDist = 0; });
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 1 && isDragging) {
+      rotY += (e.touches[0].clientX - lastX) * 0.012;
+      rotX += (e.touches[0].clientY - lastY) * 0.012;
+      rotX = Math.max(-1.2, Math.min(1.2, rotX));
+      lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      if (pinchDist) threeCamera.position.multiplyScalar(pinchDist / d);
+      pinchDist = d;
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  // Tap to select part info
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, threeCamera);
+    const hits = raycaster.intersectObjects(cellParts.map(p=>p.mesh).filter(Boolean));
+    if (hits.length) {
+      const p = cellParts.find(cp => cp.mesh === hits[0].object);
+      if (p && p.layer) showComponentInfo3D(p.layer.info);
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  AR CONTROLS
+// ════════════════════════════════════════════════════════════
+let arExploded = false;
+let arLabels = true;
+
+function toggleExplode() {
+  arExploded = !arExploded;
+  const root = document.getElementById('ar-model-root');
+  root.innerHTML = '';
+  buildARCellStack(root, arExploded ? 2.0 : 0);
+  document.querySelector('.ctrl-btn').classList.toggle('active-ctrl', arExploded);
+}
+
+function toggleAnnotations() {
+  arLabels = !arLabels;
+  document.querySelectorAll('.ar-label').forEach(l => {
+    l.setAttribute('visible', arLabels);
+  });
+}
+
+function cycleModel(dir) {
+  currentModelIndex = (currentModelIndex + dir + models.length) % models.length;
+  currentModel = models[currentModelIndex];
+  document.getElementById('ar-model-title').textContent = modelNames[currentModel];
+  const root = document.getElementById('ar-model-root');
+  root.innerHTML = '';
+  buildARModel(root, currentModel);
+}
+
+let infoPanelOpen = false;
+function showInfo() {
+  infoPanelOpen = !infoPanelOpen;
+  const panel = document.getElementById('info-panel');
+  const info = getModelInfo(currentModel);
+  document.getElementById('info-title').textContent = info.title;
+  document.getElementById('info-desc').textContent = info.desc;
+  document.getElementById('info-specs').innerHTML = info.specs.map(s =>
+    `<div class="spec-row"><span class="spec-key">${s[0]}</span><span class="spec-val">${s[1]}</span></div>`
+  ).join('');
+  panel.classList.toggle('visible', infoPanelOpen);
+}
+
+function showComponentInfo(info) {
+  document.getElementById('info-title').textContent = info.title;
+  document.getElementById('info-desc').textContent = info.desc;
+  document.getElementById('info-specs').innerHTML = info.specs.map(s =>
+    `<div class="spec-row"><span class="spec-key">${s[0]}</span><span class="spec-val">${s[1]}</span></div>`
+  ).join('');
+  document.getElementById('info-panel').classList.add('visible');
+  infoPanelOpen = true;
+}
+
+function showComponentInfo3D(info) {
+  if (!info) return;
+  // Show a brief overlay (repurpose AR info panel display logic)
+  const p = document.createElement('div');
+  p.style.cssText = 'position:fixed;bottom:140px;left:1rem;right:1rem;background:rgba(0,33,71,0.92);border:1px solid rgba(75,163,195,0.3);border-radius:14px;padding:1rem 1.25rem;z-index:999;backdrop-filter:blur(12px);';
+  p.innerHTML = `<h3 style="font-family:Georgia,serif;font-size:13px;color:#c8a951;margin-bottom:0.5rem;font-weight:normal;">${info.title}</h3><p style="font-size:11.5px;color:rgba(255,255,255,0.75);line-height:1.6;margin-bottom:0.5rem;">${info.desc}</p>${info.specs.map(s=>`<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.08);font-size:11px;"><span style="color:rgba(255,255,255,0.45)">${s[0]}</span><span style="color:#4ba3c3;font-weight:600">${s[1]}</span></div>`).join('')}<button onclick="this.parentElement.remove()" style="margin-top:0.75rem;background:none;border:1px solid rgba(75,163,195,0.4);border-radius:6px;color:#4ba3c3;padding:0.3rem 0.8rem;font-size:11px;cursor:pointer;">Close</button>`;
+  document.body.appendChild(p);
+  setTimeout(() => { if (p.parentElement) p.remove(); }, 6000);
+}
+
+function getModelInfo(model) {
+  const infos = {
+    full: { title: 'Full PEFC Assembly', desc: 'Complete membrane electrode assembly with aluminium current collector plates. Active area 10×10 mm. Neutron-transparent aluminium windows allow in-situ beam access.', specs:[['Technique','SANS + SAXS'],['Active area','10×10 mm'],['Gas inlets','4× Swagelok ¼"'],['Bolts','M4 + PTFE bushings']] },
+    exploded: { title: 'Exploded Component View', desc: 'Individual layers separated to show assembly sequence. Total stack ~3 mm when compressed.', specs:[['Layers','9 total'],['Stack thickness','~3 mm'],['Compression','Uniform via PTFE gaskets']] },
+    membrane: { title: 'Nafion 117 Membrane', desc: 'Phase-separated perfluorosulfonic acid membrane. Yellow spheres = protons (H⁺) migrating through blue ionic channels. Gray regions = hydrophobic PTFE backbone.', specs:[['Ionomer peak','~0.15 Å⁻¹'],['d-spacing','~4 nm'],['EW','1100 g/eq'],['H sensitivity','H/D contrast variation']] },
+    beam: { title: 'Neutron & X-ray Beam Geometry', desc: 'Modular cell orientation enables different scattering techniques. Blue = neutron (SANS), yellow = X-ray (SAXS), green = QENS geometry.', specs:[['SANS/SAXS','Transmission'],['Reflectometry','Grazing incidence'],['QENS','Direct beam'],['Simultaneous','SANS + SAXS']] },
+  };
+  return infos[model] || infos.full;
+}
+
+// ════════════════════════════════════════════════════════════
+//  RESIZE HANDLER
+// ════════════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  if (threeRenderer && threeCamera) {
+    const canvas = document.getElementById('viewer-canvas');
+    const W = canvas.offsetWidth, H = canvas.offsetHeight;
+    threeRenderer.setSize(W, H);
+    threeCamera.aspect = W / H;
+    threeCamera.updateProjectionMatrix();
+  }
+});
+</script>
+</body>
+</html>
