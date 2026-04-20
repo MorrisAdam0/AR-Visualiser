@@ -1,8 +1,6 @@
 # Operando PEFC — AR Visualiser
 
 **UCL Department of Chemistry / Electrochemical Innovation Laboratory**  
-Adam Morris, Rhodri Jervis, Fabrizia Foglia
-
 ---
 
 ## What this is
