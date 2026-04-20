@@ -220,16 +220,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 const GLB = './models/';
 const CFG = {
   full:     { name:'Full Cell Assembly',    file:'pefc-complete.glb', scale:'0.04 0.04 0.04',  rotX:0 },
-  exploded: { name:'Exploded View',         file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90 },
-  membrane: { name:'Nafion 117 Membrane',   file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90 },
-  beam:     { name:'Neutron Beam Geometry', file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90 },
+  exploded: { name:'Exploded View',         file:'pefc-explosion.glb', scale:'0.04 0.04 0.04',  rotX:-90 }
 };
 const KEYS = ['full','exploded','membrane','beam'];
 const INFO = {
   full:     {title:'Full Cell Assembly',    desc:'Complete MEA stack with Al current collector plates. Active area 10×10 mm. 1 mm Al neutron window.', specs:[['Technique','SANS + SAXS'],['Active area','10×10 mm'],['Gas inlets','4× Swagelok ¼"'],['Bolts','M4 + PTFE bushings']]},
-  exploded: {title:'Exploded Component View',desc:'Assembly sequence: Al plate → PTFE gasket → GDL → catalyst → Nafion 117 → catalyst → GDL → gasket → Al plate.',specs:[['Layers','9 total'],['Stack thickness','~3 mm compressed']]},
-  membrane: {title:'Nafion 117 PEM',        desc:'Phase-separated PFSA membrane. Hydrophilic SO₃⁻ channels (blue) carry H⁺. Hydrophobic PTFE backbone. Principal SANS/SAXS/QENS target.',specs:[['Thickness','183 μm'],['EW','1100 g/eq'],['Ionomer peak','~0.15 Å⁻¹'],['d-spacing','~4 nm']]},
-  beam:     {title:'Neutron & X-ray Paths', desc:'Modular orientation enables four techniques. Blue = neutron (SANS), yellow = X-ray (SAXS), green = QENS, purple = reflectometry.',specs:[['SANS/SAXS','Transmission'],['Reflectometry','Grazing incidence'],['QENS','Direct beam'],['Simultaneous','SANS + SAXS']]},
+  exploded: {title:'Exploded Component View',desc:'Assembly sequence: Al plate → PTFE gasket → GDL → catalyst → Nafion 117 → catalyst → GDL → gasket → Al plate.',specs:[['Layers','9 total'],['Stack thickness','~3 mm compressed']]}
 };
 
 // ════════════════════════════════════════════════════════
