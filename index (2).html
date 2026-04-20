@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Operando PEFC — AR Visualiser | UCL</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
+<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--dark:#002147;--accent:#4ba3c3;--gold:#c8a951;--serif:'Georgia','Times New Roman',serif;--sans:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var(--sans)}
+
+/* LOADING */
+#loading-screen{position:fixed;inset:0;z-index:2000;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.25rem}
+#loading-screen.hidden{display:none}
+.ring{width:44px;height:44px;border-radius:50%;border:3px solid rgba(75,163,195,.2);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-screen p{font-size:13px;color:rgba(255,255,255,.5)}
+#load-detail{font-size:11px;color:rgba(75,163,195,.8)}
+
+/* LANDING */
+#landing{position:fixed;inset:0;z-index:1000;background:linear-gradient(160deg,var(--dark) 0%,#001530 60%,#000 100%);display:none;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.5rem;overflow-y:auto;transition:opacity .4s ease,pointer-events 0s .4s}
+#landing.hidden{opacity:0;pointer-events:none}
+.wordmark{font-family:var(--serif);font-size:10px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:1.75rem;opacity:.8}
+.hero-title{font-family:var(--serif);font-size:clamp(1.3rem,5vw,2rem);font-weight:normal;color:#fff;text-align:center;line-height:1.35;margin-bottom:.4rem;max-width:480px}
+.hero-sub{font-size:12px;color:var(--accent);text-align:center;margin-bottom:1.75rem;max-width:400px;line-height:1.7}
+#status-banner{background:rgba(200,169,81,.12);border:1px solid rgba(200,169,81,.3);border-radius:8px;padding:.5rem .9rem;font-size:11px;color:var(--gold);margin-bottom:1.25rem;width:100%;max-width:480px;text-align:center;display:none}
+#status-banner.show{display:block}
+.mode-tabs{display:flex;gap:.5rem;margin-bottom:1.2rem;width:100%;max-width:480px}
+.mode-tab{flex:1;padding:.55rem;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-size:12px;font-family:var(--sans);cursor:pointer;transition:all .2s;text-align:center}
+.mode-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.model-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;width:100%;max-width:480px;margin-bottom:1.5rem}
+.model-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:.85rem .7rem;cursor:pointer;transition:all .2s;text-align:left;color:#fff;position:relative;overflow:hidden}
+.model-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--accent),transparent);opacity:0;transition:opacity .2s}
+.model-btn:hover::before,.model-btn.on::before{opacity:.15}
+.model-btn.on{border-color:var(--accent)}
+.model-btn .icon{font-size:1.3rem;margin-bottom:.4rem;display:block}
+.model-btn .lbl{font-size:11px;font-weight:600;letter-spacing:.02em;display:block;margin-bottom:2px}
+.model-btn .desc{font-size:10px;color:rgba(255,255,255,.4);display:block;line-height:1.35}
+.dot{position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:#44cc88;display:none}
+.model-btn.glb-ok .dot{display:block}
+.model-btn.glb-loading .dot{display:block;background:var(--gold);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.launch-btn{background:var(--accent);color:#fff;border:none;border-radius:50px;padding:.9rem 2.5rem;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.04em;transition:all .2s;width:100%;max-width:300px;animation:glow 2.5s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(75,163,195,.3)}50%{box-shadow:0 0 44px rgba(75,163,195,.65)}}
+.launch-btn:active{transform:scale(.98)}
+.info-foot{position:absolute;bottom:1.2rem;left:0;right:0;text-align:center;font-size:10px;color:rgba(255,255,255,.2);line-height:1.7;padding:0 1.5rem}
+.info-foot a{color:var(--accent);text-decoration:none}
+
+/* AR SCENE */
+#ar-scene{display:none;position:fixed;inset:0;z-index:100}
+
+/* AR UI */
+#ar-ui{position:fixed;inset:0;z-index:500;pointer-events:none;display:none}
+#ar-ui.on{display:block}
+#ar-header{position:absolute;top:0;left:0;right:0;padding:1rem 1.25rem .75rem;background:linear-gradient(to bottom,rgba(0,33,71,.92),transparent)}
+#ar-header h1{font-family:var(--serif);font-size:14px;color:#fff;font-weight:normal}
+#ar-header p{font-size:11px;color:var(--accent);margin-top:2px}
+#back-btn{background:rgba(0,33,71,.85);border:1px solid rgba(75,163,195,.4);border-radius:10px;color:var(--accent);padding:.5rem .9rem;font-size:12px;font-family:var(--sans);cursor:pointer;pointer-events:all;position:absolute;top:.9rem;right:1.25rem;backdrop-filter:blur(8px)}
+/* scan frame */
+#scan-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+#scan-hint.hidden{display:none}
+.scan-frame{width:170px;height:170px;border:1.5px solid rgba(75,163,195,.45);border-radius:14px;margin:0 auto .75rem;animation:scanAnim 2s ease-in-out infinite;position:relative}
+@keyframes scanAnim{0%,100%{border-color:rgba(75,163,195,.25)}50%{border-color:rgba(75,163,195,.9)}}
+.sc{position:absolute;width:18px;height:18px;border-color:var(--accent);border-style:solid}
+.sc.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+.sc.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+.sc.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+.sc.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+#scan-hint p{font-size:12px;color:rgba(255,255,255,.7)}
+#scan-hint small{font-size:10px;color:var(--accent);display:block;margin-top:3px}
+/* ar controls */
+#ar-ctrls{position:absolute;bottom:0;left:0;right:0;padding:.7rem .9rem 2rem;background:linear-gradient(to top,rgba(0,0,0,.88),transparent);display:flex;gap:.45rem;pointer-events:all}
+.ctrl-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;padding:.5rem .55rem;font-size:10px;font-family:var(--sans);cursor:pointer;transition:all .15s;backdrop-filter:blur(8px);flex:1;text-align:center;line-height:1.3}
+.ctrl-btn:active,.ctrl-btn.on{background:rgba(75,163,195,.3);border-color:var(--accent)}
+.ctrl-btn .ci{display:block;font-size:1.05rem;margin-bottom:1px}
+/* info panel */
+#info-panel{position:absolute;bottom:130px;left:.75rem;right:.75rem;background:rgba(0,33,71,.93);backdrop-filter:blur(12px);border:1px solid rgba(75,163,195,.3);border-radius:14px;padding:1rem 1.1rem;max-height:230px;overflow-y:auto;transform:translateY(18px);opacity:0;transition:all .3s ease;pointer-events:none}
+#info-panel.show{transform:translateY(0);opacity:1;pointer-events:all}
+#info-panel h3{font-family:var(--serif);font-size:13px;color:var(--gold);margin-bottom:.4rem;font-weight:normal}
+#info-panel p{font-size:11.5px;color:rgba(255,255,255,.72);line-height:1.6}
+.spec-row{display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:11px}
+.spec-row:last-child{border-bottom:none}
+.sk{color:rgba(255,255,255,.4)}.sv{color:var(--accent);font-weight:600}
+#info-close{float:right;background:none;border:none;color:rgba(255,255,255,.35);cursor:pointer;font-size:14px;margin-top:-2px}
+
+/* 3D VIEWER */
+#viewer{position:fixed;inset:0;z-index:200;background:radial-gradient(ellipse at 25% 25%,#001e40 0%,#000 70%);display:none;flex-direction:column}
+#viewer.on{display:flex}
+#viewer-canvas{flex:1;width:100%;touch-action:none;cursor:grab}
+#viewer-canvas:active{cursor:grabbing}
+#viewer-header{padding:.85rem 1.25rem .5rem;background:rgba(0,33,71,.9);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(75,163,195,.15)}
+#viewer-header h2{font-family:var(--serif);font-size:14px;color:#fff;font-weight:normal}
+#viewer-footer{padding:.6rem 1rem 1.25rem;background:rgba(0,0,0,.7);border-top:1px solid rgba(255,255,255,.05)}
+.slider-row{display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem}
+.slbl{font-size:10px;color:rgba(255,255,255,.4);white-space:nowrap}
+#explode-slider{flex:1;-webkit-appearance:none;height:3px;background:rgba(255,255,255,.15);border-radius:2px;outline:none}
+#explode-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--accent);border-radius:50%;cursor:pointer}
+.part-btns{display:flex;gap:.4rem;flex-wrap:wrap}
+.pbtn{padding:.35rem .75rem;border-radius:20px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(255,255,255,.65);font-size:10px;font-family:var(--sans);cursor:pointer;transition:all .15s}
+.pbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#vload{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:10}
+#vload .ring{margin:0 auto .75rem}
+#vload p{font-size:12px;color:rgba(255,255,255,.5)}
+#vload.hidden{display:none}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.f1{animation:fadeUp .5s ease forwards}
+.f2{animation:fadeUp .5s ease .15s forwards;opacity:0}
+.f3{animation:fadeUp .5s ease .3s forwards;opacity:0}
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="ring"></div>
+  <p>Operando PEFC — AR Visualiser</p>
+  <span id="load-detail">Initialising…</span>
+</div>
+
+<div id="landing">
+  <p class="wordmark f1">University College London · Department of Chemistry</p>
+  <h1 class="hero-title f2">Operando PEFC<br>AR Visualiser</h1>
+  <p class="hero-sub f2">Explore the modular neutron-transparent fuel cell in 3D.<br>Rotate, explode, and interrogate every component.</p>
+  <div id="status-banner"></div>
+  <div class="mode-tabs f3">
+    <button class="mode-tab on" id="tab-ar" onclick="setMode('ar')">📷 AR Camera</button>
+    <button class="mode-tab" id="tab-3d" onclick="setMode('3d')">🔬 3D Viewer</button>
+  </div>
+  <div class="model-grid f3">
+    <button class="model-btn on" onclick="setModel(this,'full')" data-m="full">
+      <span class="dot"></span><span class="icon">⚙️</span>
+      <span class="lbl">Full Assembly</span><span class="desc">Complete PEFC stack</span>
+    </button>
+    <button class="model-btn" onclick="setModel(this,'exploded')" data-m="exploded">
+      <span class="dot"></span><span class="icon">💥</span>
+      <span class="lbl">Exploded View</span><span class="desc">Components separated</span>
+    </button>
+    <button class="model-btn" onclick="setModel(this,'membrane')" data-m="membrane">
+      <span class="dot"></span><span class="icon">🧬</span>
+      <span class="lbl">Membrane Detail</span><span class="desc">Nafion microstructure</span>
+    </button>
+    <button class="model-btn" onclick="setModel(this,'beam')" data-m="beam">
+      <span class="dot"></span><span class="icon">⚡</span>
+      <span class="lbl">Beam Geometry</span><span class="desc">SANS / SAXS / QENS</span>
+    </button>
+  </div>
+  <button class="launch-btn f3" onclick="launch()">Launch AR Camera</button>
+  <p class="info-foot">Morris, Jervis &amp; Foglia · Gordon Conference on Neutron Scattering 2025<br>
+  <a href="marker.html" target="_blank">View / print poster marker →</a></p>
+</div>
+
+<!-- A-Frame AR scene -->
+<a-scene id="ar-scene" embedded
+  arjs="sourceType:webcam;debugUIEnabled:false;detectionMode:mono_and_matrix;matrixCodeType:3x3;facingMode:environment;"
+  vr-mode-ui="enabled:false"
+  renderer="antialias:true;alpha:true;logarithmicDepthBuffer:true;colorManagement:true;"
+  webkit-playsinline
+  playsinline
+  loading-screen="enabled:false">
+  <a-assets id="a-assets" timeout="30000"></a-assets>
+  <a-marker preset="hiro" id="hiro-marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5" emitevents="true">
+    <a-entity id="ar-root" position="0 0.05 0"></a-entity>
+  </a-marker>
+  <a-entity camera></a-entity>
+</a-scene>
+
+<!-- AR overlay -->
+<div id="ar-ui">
+  <div id="ar-header">
+    <h1 id="ar-title">Full Assembly</h1>
+    <p id="ar-sub">Point camera at the Hiro marker on the poster</p>
+  </div>
+  <button id="back-btn" onclick="goBack()">← Back</button>
+  <div id="scan-hint">
+    <div class="scan-frame">
+      <div class="sc tl"></div><div class="sc tr"></div>
+      <div class="sc bl"></div><div class="sc br"></div>
+    </div>
+    <p>Point at the marker on the poster</p>
+    <small>Tap a component to learn more</small>
+  </div>
+  <div id="info-panel">
+    <button id="info-close" onclick="closeInfo()">✕</button>
+    <h3 id="ip-title">Component</h3>
+    <p id="ip-desc" style="margin-bottom:.6rem"></p>
+    <div id="ip-specs"></div>
+  </div>
+  <div id="ar-ctrls">
+    <button class="ctrl-btn" id="xpl-btn" onclick="doExplode()"><span class="ci">💥</span>Explode</button>
+    <button class="ctrl-btn" onclick="arCycle(-1)"><span class="ci">‹</span>Prev</button>
+    <button class="ctrl-btn" onclick="arCycle(1)"><span class="ci">›</span>Next</button>
+    <button class="ctrl-btn" id="lbl-btn" onclick="doLabels()"><span class="ci">🏷</span>Labels</button>
+    <button class="ctrl-btn" onclick="showModelInfo()"><span class="ci">ℹ</span>Info</button>
+  </div>
+</div>
+
+<!-- 3D viewer -->
+<div id="viewer">
+  <div id="viewer-header">
+    <h2 id="v-title">Full Assembly</h2>
+    <button class="pbtn" onclick="goBack()" style="border-color:rgba(75,163,195,.4);color:var(--accent)">← Back</button>
+  </div>
+  <div style="position:relative;flex:1;display:flex;flex-direction:column">
+    <canvas id="viewer-canvas"></canvas>
+    <div id="vload"><div class="ring"></div><p id="vload-txt">Loading model…</p></div>
+  </div>
+  <div id="viewer-footer">
+    <div class="slider-row">
+      <span class="slbl">Explode</span>
+      <input type="range" id="explode-slider" min="0" max="100" value="0" step="1" oninput="setExplode(this.value/100)">
+      <span class="slbl" id="xpct">0%</span>
+    </div>
+    <div class="part-btns">
+      <button class="pbtn on" onclick="filterParts(this,'all')">All</button>
+      <button class="pbtn" onclick="filterParts(this,'plate')">Al Plates</button>
+      <button class="pbtn" onclick="filterParts(this,'gasket')">Gaskets</button>
+      <button class="pbtn" onclick="filterParts(this,'membrane')">Membrane</button>
+      <button class="pbtn" onclick="filterParts(this,'gdl')">GDL</button>
+      <button class="pbtn" onclick="filterParts(this,'beam')">Beams</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════════════
+//  CONFIG — file names must match what you upload to /models/
+// ════════════════════════════════════════════════════════
+const GLB = './models/';
+const CFG = {
+  full:     { name:'Full Cell Assembly',    file:'pefc-explosion.glb', scale:'0.8 0.8 0.8',  rotX:-90 },
+  exploded: { name:'Exploded View',         file:'pefc-explosion.glb', scale:'0.8 0.8 0.8',  rotX:-90 },
+  membrane: { name:'Nafion 117 Membrane',   file:'pefc-explosion.glb', scale:'1.2 1.2 1.2',  rotX:-90 },
+  beam:     { name:'Neutron Beam Geometry', file:'pefc-explosion.glb', scale:'1.0 1.0 1.0',  rotX:-90 },
+};
+const KEYS = ['full','exploded','membrane','beam'];
+const INFO = {
+  full:     {title:'Full Cell Assembly',    desc:'Complete MEA stack with Al current collector plates. Active area 10×10 mm. 1 mm Al neutron window.', specs:[['Technique','SANS + SAXS'],['Active area','10×10 mm'],['Gas inlets','4× Swagelok ¼"'],['Bolts','M4 + PTFE bushings']]},
+  exploded: {title:'Exploded Component View',desc:'Assembly sequence: Al plate → PTFE gasket → GDL → catalyst → Nafion 117 → catalyst → GDL → gasket → Al plate.',specs:[['Layers','9 total'],['Stack thickness','~3 mm compressed']]},
+  membrane: {title:'Nafion 117 PEM',        desc:'Phase-separated PFSA membrane. Hydrophilic SO₃⁻ channels (blue) carry H⁺. Hydrophobic PTFE backbone. Principal SANS/SAXS/QENS target.',specs:[['Thickness','183 μm'],['EW','1100 g/eq'],['Ionomer peak','~0.15 Å⁻¹'],['d-spacing','~4 nm']]},
+  beam:     {title:'Neutron & X-ray Paths', desc:'Modular orientation enables four techniques. Blue = neutron (SANS), yellow = X-ray (SAXS), green = QENS, purple = reflectometry.',specs:[['SANS/SAXS','Transmission'],['Reflectometry','Grazing incidence'],['QENS','Direct beam'],['Simultaneous','SANS + SAXS']]},
+};
+
+// ════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════
+let mode='ar', model='full', mIdx=0;
+let glbOk={};
+let arXpl=false, arLbls=true;
+let R3,S3,C3,animId;
+let parts=[],xFac=0,xTgt=0;
+let drag=false,lx=0,ly=0,rx=.25,ry=.5,pd=0;
+let ray3,m3;
+
+// ════════════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════════════
+async function boot(){
+  det('Checking models…');
+  const checks=await Promise.all(KEYS.map(async k=>{
+    try{const r=await fetch(GLB+CFG[k].file,{method:'HEAD'});return{k,ok:r.ok}}
+    catch{return{k,ok:false}}
+  }));
+  checks.forEach(({k,ok})=>{
+    glbOk[k]=ok;
+    if(ok) document.querySelector(`[data-m="${k}"]`).classList.add('glb-ok');
+  });
+  // Preload into A-Frame assets
+  const loaded=checks.filter(c=>c.ok);
+  if(loaded.length){
+    det('Preloading 3D models…');
+    loaded.forEach(({k})=>{
+      const it=document.createElement('a-asset-item');
+      it.id='glb-'+k; it.setAttribute('src',GLB+CFG[k].file);
+      document.getElementById('a-assets').appendChild(it);
+    });
+    await new Promise(r=>setTimeout(r,300));
+  }
+  // Status banner
+  const miss=checks.filter(c=>!c.ok).map(c=>CFG[c.k].name);
+  const ban=document.getElementById('status-banner');
+  if(loaded.length===0){
+    ban.textContent='No GLB models found — showing procedural geometry. Upload your Fusion 360 exports to /models/ to see real CAD.';
+    ban.classList.add('show');
+  } else if(miss.length>0){
+    ban.textContent=`${loaded.length}/4 models loaded. Fallback for: ${miss.join(', ')}`;
+    ban.classList.add('show');
+  }
+  document.getElementById('loading-screen').classList.add('hidden');
+  document.getElementById('landing').style.display='flex';
+}
+function det(t){document.getElementById('load-detail').textContent=t}
+
+// ════════════════════════════════════════════════════════
+//  LANDING
+// ════════════════════════════════════════════════════════
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+m).classList.add('on');
+  document.getElementById('launch-btn'||'.launch-btn').textContent=
+    m==='ar'?'Launch AR Camera':'Open 3D Viewer';
+}
+function setModel(btn,m){
+  model=m; mIdx=KEYS.indexOf(m);
+  document.querySelectorAll('.model-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+function launch(){
+  document.getElementById('landing').classList.add('hidden');
+  mode==='ar'?startAR():startViewer();
+}
+function goBack(){
+  document.getElementById('landing').classList.remove('hidden');
+  document.getElementById('landing').style.display='flex';
+  document.getElementById('ar-ui').classList.remove('on');
+  document.getElementById('ar-scene').style.display='none';
+  document.getElementById('viewer').classList.remove('on');
+  closeInfo();
+  if(animId){cancelAnimationFrame(animId);animId=null}
+  if(R3){R3.dispose();R3=null}
+  parts=[];
+}
+
+// ════════════════════════════════════════════════════════
+//  AR
+// ════════════════════════════════════════════════════════
+function startAR(){
+  document.getElementById('ar-scene').style.display='block';
+  document.getElementById('ar-ui').classList.add('on');
+  buildARModel(model);
+  const mk=document.getElementById('hiro-marker');
+  mk.addEventListener('markerFound',()=>document.getElementById('scan-hint').classList.add('hidden'));
+  mk.addEventListener('markerLost',()=>document.getElementById('scan-hint').classList.remove('hidden'));
+}
+
+function buildARModel(k){
+  const root=document.getElementById('ar-root');
+  root.innerHTML='';
+  document.getElementById('ar-title').textContent=CFG[k].name;
+  if(glbOk[k]){
+    const e=document.createElement('a-gltf-model');
+    e.setAttribute('src','#glb-'+k);
+    e.setAttribute('scale',CFG[k].scale);
+    e.setAttribute('rotation',CFG[k].rotX+' 0 0');
+    e.setAttribute('shadow','cast:true;receive:true');
+    e.setAttribute('animation-mixer','');
+    root.appendChild(e);
+    if(arLbls) addARTxt(root,CFG[k].name,'0 2.8 0');
+  } else {
+    buildARProc(root,k);
+  }
+}
+
+function addARTxt(root,txt,pos){
+  const t=document.createElement('a-text');
+  t.setAttribute('value',txt);t.setAttribute('position',pos);
+  t.setAttribute('color','#c8f0ff');t.setAttribute('align','center');
+  t.setAttribute('width','5');t.setAttribute('class','arlbl');
+  root.appendChild(t);
+}
+
+function buildARProc(root,k){
+  if(k==='full'||k==='exploded') buildARStack(root,k==='exploded');
+  else if(k==='membrane') buildARMem(root);
+  else buildARBeam(root);
+}
+
+function buildARStack(root,xpl){
+  layerDefs().forEach((l,i)=>{
+    const yOff=xpl?(i-4)*0.75:0;
+    const b=document.createElement('a-box');
+    b.setAttribute('position',`0 ${l.py+yOff} 0`);
+    b.setAttribute('width',l.w);b.setAttribute('height',l.h);b.setAttribute('depth',l.d);
+    b.setAttribute('color',l.col);b.setAttribute('opacity',l.op||1);
+    b.setAttribute('metalness',l.met||0.1);b.setAttribute('roughness',l.rou||0.7);
+    b.addEventListener('click',()=>openInfo(l.info));
+    root.appendChild(b);
+    if(arLbls&&l.lbl) addARTxt(root,l.lbl,`3 ${l.py+yOff} 0`);
+  });
+  [[1.8,1.8],[1.8,-1.8],[-1.8,1.8],[-1.8,-1.8]].forEach(([x,z])=>{
+    const c=document.createElement('a-cylinder');
+    c.setAttribute('position',`${x} 0 ${z}`);c.setAttribute('radius','0.1');
+    c.setAttribute('height','4.5');c.setAttribute('color','#999');
+    c.setAttribute('metalness','0.9');c.setAttribute('roughness','0.1');
+    root.appendChild(c);
+  });
+}
+
+function buildARMem(root){
+  for(let i=-3;i<=3;i++) for(let j=-3;j<=3;j++){
+    if(Math.random()>.45){
+      const h=.4+Math.random()*1.2;
+      const cy=document.createElement('a-cylinder');
+      cy.setAttribute('position',`${i*.7} ${h/2-.3} ${j*.7}`);
+      cy.setAttribute('radius','.08');cy.setAttribute('height',h.toFixed(2));
+      cy.setAttribute('color','#4ba3c3');cy.setAttribute('opacity','.8');
+      root.appendChild(cy);
+      const sp=document.createElement('a-sphere');
+      sp.setAttribute('position',`${i*.7} ${(Math.random()*h-.3).toFixed(2)} ${j*.7}`);
+      sp.setAttribute('radius','.06');sp.setAttribute('color','#ffdd44');
+      root.appendChild(sp);
+    } else {
+      const bx=document.createElement('a-box');
+      bx.setAttribute('position',`${i*.7} ${(Math.random()-.5).toFixed(2)} ${j*.7}`);
+      bx.setAttribute('width','.35');bx.setAttribute('height','.25');bx.setAttribute('depth','.35');
+      bx.setAttribute('color','#1a1a2e');bx.setAttribute('roughness','.9');
+      root.appendChild(bx);
+    }
+  }
+}
+
+function buildARBeam(root){
+  const cw=document.createElement('a-box');
+  cw.setAttribute('position','0 0 0');cw.setAttribute('width','4');cw.setAttribute('height','4');cw.setAttribute('depth','1.5');
+  cw.setAttribute('color','#c8a951');cw.setAttribute('opacity','.12');cw.setAttribute('wireframe','true');
+  root.appendChild(cw);
+  [['#4ba3c3',0,'Neutron→SANS'],['#ffdd00',.4,'X-ray→SAXS']].forEach(([col,y,lbl])=>{
+    const cy=document.createElement('a-cylinder');
+    cy.setAttribute('position',`-4.5 ${y} 0`);cy.setAttribute('rotation','0 0 90');
+    cy.setAttribute('radius','.07');cy.setAttribute('height','5');
+    cy.setAttribute('color',col);cy.setAttribute('opacity','.8');
+    root.appendChild(cy);
+    if(arLbls) addARTxt(root,lbl,`-6 ${y+.8} 0`);
+  });
+}
+
+// AR controls
+function doExplode(){
+  arXpl=!arXpl;
+  document.getElementById('xpl-btn').classList.toggle('on',arXpl);
+  if(glbOk[model]){
+    const m=document.querySelector('#ar-root a-gltf-model');
+    if(m){const s=arXpl?'1.6 1.6 1.6':CFG[model].scale;m.setAttribute('animation','property:scale;to:'+s+';dur:700;easing:easeOutQuad')}
+  } else {
+    buildARStack(document.getElementById('ar-root'),arXpl);
+  }
+}
+function doLabels(){
+  arLbls=!arLbls;
+  document.querySelectorAll('.arlbl').forEach(l=>l.setAttribute('visible',arLbls));
+  document.getElementById('lbl-btn').classList.toggle('on',arLbls);
+}
+function arCycle(d){
+  mIdx=(mIdx+d+KEYS.length)%KEYS.length; model=KEYS[mIdx];
+  arXpl=false; document.getElementById('xpl-btn').classList.remove('on');
+  buildARModel(model);
+}
+function showModelInfo(){openInfo(INFO[model])}
+
+// ════════════════════════════════════════════════════════
+//  INFO PANEL
+// ════════════════════════════════════════════════════════
+function openInfo(info){
+  document.getElementById('ip-title').textContent=info.title;
+  document.getElementById('ip-desc').textContent=info.desc;
+  document.getElementById('ip-specs').innerHTML=(info.specs||[]).map(s=>
+    `<div class="spec-row"><span class="sk">${s[0]}</span><span class="sv">${s[1]}</span></div>`
+  ).join('');
+  document.getElementById('info-panel').classList.add('show');
+}
+function closeInfo(){document.getElementById('info-panel').classList.remove('show')}
+
+// ════════════════════════════════════════════════════════
+//  3D VIEWER
+// ════════════════════════════════════════════════════════
+function startViewer(){
+  document.getElementById('viewer').classList.add('on');
+  document.getElementById('v-title').textContent=CFG[model].name;
+  document.getElementById('vload').classList.remove('hidden');
+  const canvas=document.getElementById('viewer-canvas');
+  const W=canvas.offsetWidth||window.innerWidth, H=canvas.offsetHeight||(window.innerHeight-110);
+  R3=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  R3.setPixelRatio(Math.min(devicePixelRatio,2));R3.setSize(W,H);
+  R3.shadowMap.enabled=true;R3.shadowMap.type=THREE.PCFSoftShadowMap;
+  R3.toneMapping=THREE.ACESFilmicToneMapping;R3.toneMappingExposure=1.3;
+  R3.outputEncoding=THREE.sRGBEncoding;
+  S3=new THREE.Scene();S3.fog=new THREE.FogExp2(0x000d1a,.03);
+  C3=new THREE.PerspectiveCamera(42,W/H,.01,1000);C3.position.set(18,12,22);C3.lookAt(0,0,0);
+  S3.add(new THREE.AmbientLight(0x2a4060,1.0));
+  const sun=new THREE.DirectionalLight(0xffeedd,1.8);sun.position.set(20,30,15);sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048);S3.add(sun);
+  const fill=new THREE.PointLight(0x4ba3c3,1.4,120);fill.position.set(-15,8,8);S3.add(fill);
+  const rim=new THREE.PointLight(0xc8a951,.7,80);rim.position.set(0,-10,-15);S3.add(rim);
+  const grid=new THREE.GridHelper(60,60,0x112233,0x0a1520);grid.position.y=-9;S3.add(grid);
+  ray3=new THREE.Raycaster();m3=new THREE.Vector2();
+  setupTouch(canvas);
+  loadModel3(model);
+  animate3();
+}
+
+async function loadModel3(k){
+  parts.forEach(p=>{if(p.mesh)S3.remove(p.mesh)});parts=[];
+  document.getElementById('explode-slider').value=0;xFac=xTgt=0;
+  document.getElementById('xpct').textContent='0%';
+  if(glbOk[k]){
+    try{
+      const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.128/examples/jsm/loaders/GLTFLoader.js');
+      new GLTFLoader().load(
+        GLB+CFG[k].file,
+        gltf=>{
+          const m=gltf.scene;
+          // Auto-scale to ~12 units
+          const box=new THREE.Box3().setFromObject(m);
+          const size=box.getSize(new THREE.Vector3());
+          const sc=12/Math.max(size.x,size.y,size.z);
+          m.scale.setScalar(sc);
+          // Centre
+          const ctr=box.getCenter(new THREE.Vector3());
+          m.position.sub(ctr.multiplyScalar(sc));
+          // Fusion 360 is Z-up → rotate to Y-up
+          m.rotation.x=-Math.PI/2;
+          m.traverse(ch=>{
+            if(!ch.isMesh)return;
+            ch.castShadow=ch.receiveShadow=true;
+            if(ch.material)ch.material.envMapIntensity=.6;
+            const n=(ch.name||'').toLowerCase();
+            let t='other';
+            if(n.match(/plate|alumin|al_/))t='plate';
+            else if(n.match(/gasket|ptfe/))t='gasket';
+            else if(n.match(/nafion|membrane|pem/))t='membrane';
+            else if(n.match(/gdl|carbon/))t='gdl';
+            else if(n.match(/beam|neutron|xray/))t='beam';
+            ch.userData.info=INFO[k];
+            parts.push({mesh:ch,type:t,baseY:ch.position.y});
+          });
+          S3.add(m);
+          document.getElementById('vload').classList.add('hidden');
+        },
+        xhr=>{
+          const p=xhr.total?Math.round(xhr.loaded/xhr.total*100):0;
+          document.getElementById('vload-txt').textContent=`Loading… ${p}%`;
+        },
+        ()=>buildProc3(k)
+      );
+    }catch{buildProc3(k)}
+  } else {
+    buildProc3(k);
+  }
+}
+
+function buildProc3(k){
+  document.getElementById('vload').classList.add('hidden');
+  if(k==='full'||k==='exploded') buildStack3();
+  else if(k==='membrane') buildMem3();
+  else buildBeam3();
+}
+
+function buildStack3(){
+  layerDefs().forEach((l,i)=>{
+    const geo=new THREE.BoxGeometry(l.w*1.5,l.h*1.5,l.d*1.5);
+    const mat=new THREE.MeshStandardMaterial({color:new THREE.Color(l.col),metalness:l.met||.05,roughness:l.rou||.7,transparent:!!(l.op&&l.op<1),opacity:l.op||1});
+    const mesh=new THREE.Mesh(geo,mat);mesh.castShadow=mesh.receiveShadow=true;
+    const baseY=(i-4.5)*(l.h*1.5+.12);mesh.position.y=baseY;
+    mesh.userData.info=l.info;
+    mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0x4ba3c3,transparent:true,opacity:.18})));
+    S3.add(mesh);parts.push({mesh,type:l.type||'other',baseY});
+  });
+  const bg=new THREE.CylinderGeometry(.15,.15,11,12),bm=new THREE.MeshStandardMaterial({color:0x888888,metalness:.9,roughness:.1});
+  [[3.2,3.2],[3.2,-3.2],[-3.2,3.2],[-3.2,-3.2]].forEach(([x,z])=>{const b=new THREE.Mesh(bg,bm);b.position.set(x,0,z);b.castShadow=true;S3.add(b)});
+}
+
+function buildMem3(){
+  S3.add(Object.assign(new THREE.Mesh(new THREE.PlaneGeometry(14,14),new THREE.MeshStandardMaterial({color:0x0a1628,roughness:.9})),{rotation:{x:-Math.PI/2,y:0,z:0},position:{x:0,y:-.8,z:0}}));
+  for(let i=-5;i<=5;i++) for(let j=-5;j<=5;j++){
+    if(Math.random()>.4){
+      const h=.6+Math.random()*2;
+      const mesh=new THREE.Mesh(new THREE.CylinderGeometry(.1+Math.random()*.07,.1,h,8),new THREE.MeshStandardMaterial({color:0x4ba3c3,transparent:true,opacity:.8,roughness:.3}));
+      mesh.position.set(i*1.1+(Math.random()-.5)*.3,h/2-.8,j*1.1+(Math.random()-.5)*.3);mesh.castShadow=true;
+      S3.add(mesh);parts.push({mesh,type:'membrane',baseY:mesh.position.y});
+      const pm=new THREE.Mesh(new THREE.SphereGeometry(.08,8,8),new THREE.MeshStandardMaterial({color:0xffdd44,emissive:0xffaa00,emissiveIntensity:.6}));
+      pm.position.set(mesh.position.x,-.8+Math.random()*h,mesh.position.z);
+      pm.userData.speed=.008+Math.random()*.018;pm.userData.minY=-.8;pm.userData.maxY=h-.8;
+      S3.add(pm);parts.push({mesh:pm,type:'membrane',isProt:true});
+    } else {
+      const mesh=new THREE.Mesh(new THREE.BoxGeometry(.5,.35,.5),new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:.95}));
+      mesh.position.set(i*1.1+(Math.random()-.5)*.4,(Math.random()-.5)*2,j*1.1+(Math.random()-.5)*.4);mesh.rotation.y=Math.random()*Math.PI;
+      S3.add(mesh);parts.push({mesh,type:'membrane',baseY:mesh.position.y});
+    }
+  }
+  C3.position.set(14,10,16);
+}
+
+function buildBeam3(){
+  const cwg=new THREE.BoxGeometry(8,8,3);
+  S3.add(new THREE.Mesh(cwg,new THREE.MeshStandardMaterial({color:0xc8a951,wireframe:true,opacity:.4,transparent:true})));
+  S3.add(new THREE.Mesh(cwg,new THREE.MeshStandardMaterial({color:0xc8a951,opacity:.05,transparent:true})));
+  [[0x4ba3c3,0x2266aa,0],[0xffdd00,0xffaa00,.8],[0x44cc88,0x22aa66,-.8]].forEach(([col,em,y])=>{
+    const cy=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,22,12),new THREE.MeshStandardMaterial({color:col,emissive:em,emissiveIntensity:.5,transparent:true,opacity:.75}));
+    cy.rotation.z=Math.PI/2;cy.position.y=y;S3.add(cy);parts.push({mesh:cy,type:'beam',baseY:cy.position.y});
+  });
+  [[-12,0],[12,0],[0,-10]].forEach(([x,y])=>{
+    const det=new THREE.Mesh(new THREE.BoxGeometry(3,3,.3),new THREE.MeshStandardMaterial({color:0x334466,transparent:true,opacity:.5}));
+    det.position.set(x,y,0);if(y!==0)det.rotation.x=Math.PI/2;S3.add(det);parts.push({mesh:det,type:'beam',baseY:det.position.y});
+  });
+  C3.position.set(20,14,20);
+}
+
+function animate3(){
+  animId=requestAnimationFrame(animate3);
+  if(Math.abs(xFac-xTgt)>.001){xFac+=(xTgt-xFac)*.1;applyExplode()}
+  parts.forEach(p=>{if(p.isProt&&p.mesh){p.mesh.position.y+=p.mesh.userData.speed;if(p.mesh.position.y>p.mesh.userData.maxY)p.mesh.position.y=p.mesh.userData.minY}});
+  if(!drag)ry+=.004;
+  S3.rotation.y=ry;S3.rotation.x=Math.max(-.8,Math.min(.8,rx));
+  R3.render(S3,C3);
+}
+
+function applyExplode(){
+  parts.forEach(p=>{
+    if(p.isProt||!p.mesh||p.baseY===undefined)return;
+    const dir=p.baseY>0?1:p.baseY<0?-1:0;
+    p.mesh.position.y=p.baseY+dir*xFac*Math.abs(p.baseY*.4+.8)*4;
+  });
+}
+function setExplode(v){xTgt=v;document.getElementById('xpct').textContent=Math.round(v*100)+'%'}
+function filterParts(btn,part){
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  parts.forEach(p=>{if(p.mesh)p.mesh.visible=(part==='all'||p.type===part)});
+}
+
+function setupTouch(canvas){
+  canvas.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY});
+  window.addEventListener('mouseup',()=>drag=false);
+  window.addEventListener('mousemove',e=>{if(!drag)return;ry+=(e.clientX-lx)*.008;rx+=(e.clientY-ly)*.008;lx=e.clientX;ly=e.clientY});
+  canvas.addEventListener('wheel',e=>{C3.position.multiplyScalar(1+e.deltaY*.001);e.preventDefault()},{passive:false});
+  canvas.addEventListener('touchstart',e=>{e.preventDefault();if(e.touches.length===1){drag=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY}if(e.touches.length===2){drag=false;pd=hyp(e.touches)}},{passive:false});
+  canvas.addEventListener('touchend',()=>{drag=false;pd=0});
+  canvas.addEventListener('touchmove',e=>{e.preventDefault();if(e.touches.length===1&&drag){ry+=(e.touches[0].clientX-lx)*.01;rx+=(e.touches[0].clientY-ly)*.01;lx=e.touches[0].clientX;ly=e.touches[0].clientY}if(e.touches.length===2){const d=hyp(e.touches);if(pd)C3.position.multiplyScalar(pd/d);pd=d}},{passive:false});
+  canvas.addEventListener('click',e=>{
+    if(!ray3)return;
+    const rc=canvas.getBoundingClientRect();
+    m3.x=((e.clientX-rc.left)/rc.width)*2-1;m3.y=-((e.clientY-rc.top)/rc.height)*2+1;
+    ray3.setFromCamera(m3,C3);
+    const hits=ray3.intersectObjects(parts.map(p=>p.mesh).filter(Boolean),true);
+    if(hits.length){const p=parts.find(pp=>pp.mesh===hits[0].object||pp.mesh===hits[0].object.parent);if(p?.mesh?.userData?.info)openInfo(p.mesh.userData.info)}
+  });
+}
+function hyp(t){return Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY)}
+window.addEventListener('resize',()=>{if(!R3||!C3)return;const canvas=document.getElementById('viewer-canvas');const W=canvas.offsetWidth,H=canvas.offsetHeight;if(!W||!H)return;R3.setSize(W,H);C3.aspect=W/H;C3.updateProjectionMatrix()});
+
+// ════════════════════════════════════════════════════════
+//  LAYER DATA
+// ════════════════════════════════════════════════════════
+function layerDefs(){return[
+  {lbl:'Al plate (anode)',  w:4.5,h:.45,d:4.5,py:4.2,col:'#8899aa',met:.8,rou:.2,type:'plate',   info:INFO.full},
+  {lbl:'PTFE gasket',      w:4.5,h:.1, d:4.5,py:3.7,col:'#eef0ee',     rou:.9,type:'gasket',  info:{title:'PTFE Gasket',desc:'Electrical isolation and uniform compression.',specs:[['Material','PTFE'],['Thickness','0.3 mm']]}},
+  {lbl:'GDL (anode)',      w:3.8,h:.15,d:3.8,py:3.3,col:'#222',        rou:.95,type:'gdl',    info:{title:'GDL — Anode',desc:'Toray TGP-H-060 carbon paper. H₂ transport + electron conduction.',specs:[['Material','Carbon paper'],['Porosity','~78%']]}},
+  {lbl:'Anode catalyst',   w:3.8,h:.07,d:3.8,py:2.9,col:'#2244aa',    rou:.8, type:'other',  info:{title:'Anode Catalyst Layer',desc:'Pt/C. H₂ → 2H⁺ + 2e⁻',specs:[['Catalyst','Pt/C 40%'],['Loading','0.2 mg/cm²']]}},
+  {lbl:'Nafion 117',       w:3.8,h:.16,d:3.8,py:2.5,col:'#4ba3c3',op:.85,rou:.3,type:'membrane',info:INFO.membrane},
+  {lbl:'Cathode catalyst', w:3.8,h:.07,d:3.8,py:2.1,col:'#882244',    rou:.8, type:'other',  info:{title:'Cathode Catalyst Layer',desc:'Pt/C. O₂ + 4H⁺ + 4e⁻ → 2H₂O',specs:[['Catalyst','Pt/C 40%'],['Loading','0.4 mg/cm²']]}},
+  {lbl:'GDL (cathode)',    w:3.8,h:.15,d:3.8,py:1.7,col:'#222',        rou:.95,type:'gdl',    info:{title:'GDL — Cathode',desc:'Product water removal critical here.',specs:[['Material','Carbon paper']]}},
+  {lbl:'PTFE gasket',      w:4.5,h:.1, d:4.5,py:1.3,col:'#eef0ee',    rou:.9, type:'gasket', info:{title:'PTFE Gasket',desc:'Mirror of anode gasket.',specs:[['Material','PTFE']]}},
+  {lbl:'Al plate (cathode)',w:4.5,h:.45,d:4.5,py:.8,col:'#8899aa',met:.8,rou:.2,type:'plate',   info:{title:'Al Plate — Cathode',desc:'SAXS sealing ring on outer face for simultaneous X-ray access.',specs:[['Feature','SAXS sealing ring'],['Contacts','4× Swagelok']]}},
+]}
+
+window.addEventListener('DOMContentLoaded',boot);
+
+// ── iOS Safari camera fix ──────────────────────────────────
+// AR.js injects a <video> element after A-Frame boots.
+// Safari requires playsinline + autoplay attributes on that
+// element or it refuses to stream the camera feed.
+(function patchARVideo(){
+  const obs = new MutationObserver(()=>{
+    const v = document.querySelector('video');
+    if(v){
+      v.setAttribute('playsinline','');
+      v.setAttribute('webkit-playsinline','');
+      v.setAttribute('autoplay','');
+      v.muted = true;
+      obs.disconnect();
+    }
+  });
+  obs.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+</body>
+</html>
