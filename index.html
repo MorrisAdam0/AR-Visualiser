@@ -6,8 +6,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Operando PEFC — AR Visualiser | UCL</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
-<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+<!--
+  CRITICAL VERSION PAIRING:
+  A-Frame 1.3.0 + AR.js 3.4.5 = confirmed working camera feed on iOS Safari + Android Chrome.
+  Do NOT use aframe 1.4+ with ar.js master — the camera feed breaks.
+-->
+<script src="https://cdn.jsdelivr.net/npm/aframe@1.3.0/dist/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ar-js-org/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -15,7 +20,7 @@
 html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var(--sans)}
 
 /* LOADING */
-#loading-screen{position:fixed;inset:0;z-index:2000;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.25rem}
+#loading-screen{position:fixed;inset:0;z-index:3000;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.25rem}
 #loading-screen.hidden{display:none}
 .ring{width:44px;height:44px;border-radius:50%;border:3px solid rgba(75,163,195,.2);border-top-color:var(--accent);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -23,7 +28,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 #load-detail{font-size:11px;color:rgba(75,163,195,.8)}
 
 /* LANDING */
-#landing{position:fixed;inset:0;z-index:1000;background:linear-gradient(160deg,var(--dark) 0%,#001530 60%,#000 100%);display:none;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.5rem;overflow-y:auto;transition:opacity .4s ease,pointer-events 0s .4s}
+#landing{position:fixed;inset:0;z-index:2000;background:linear-gradient(160deg,var(--dark) 0%,#001530 60%,#000 100%);display:none;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.5rem;overflow-y:auto;transition:opacity .4s ease,pointer-events 0s .4s}
 #landing.hidden{opacity:0;pointer-events:none}
 .wordmark{font-family:var(--serif);font-size:10px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:1.75rem;opacity:.8}
 .hero-title{font-family:var(--serif);font-size:clamp(1.3rem,5vw,2rem);font-weight:normal;color:#fff;text-align:center;line-height:1.35;margin-bottom:.4rem;max-width:480px}
@@ -60,9 +65,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 #back-btn{background:rgba(0,33,71,.85);border:1px solid rgba(75,163,195,.4);border-radius:10px;color:var(--accent);padding:.5rem .9rem;font-size:12px;font-family:var(--sans);cursor:pointer;pointer-events:all;position:absolute;top:.9rem;right:1.25rem;backdrop-filter:blur(8px)}
 /* scan frame */
 #scan-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
-#scan-hint.hidden{display:none}
+#scan-hint{transition:opacity .4s}#scan-hint.hidden{opacity:0;pointer-events:none}
 .scan-frame{width:170px;height:170px;border:1.5px solid rgba(75,163,195,.45);border-radius:14px;margin:0 auto .75rem;animation:scanAnim 2s ease-in-out infinite;position:relative}
-@keyframes scanAnim{0%,100%{border-color:rgba(75,163,195,.25)}50%{border-color:rgba(75,163,195,.9)}}
+
+/* Scanning line animation inside the frame */
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--acc),transparent);animation:scanLine 2s ease-in-out infinite;top:0}
+@keyframes scanLine{0%{top:0%;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:100%;opacity:0}}
+/* scanAnim on the frame itself */
+@keyframes scanAnim{0%,100%{border-color:rgba(75,163,195,.25);box-shadow:none}50%{border-color:rgba(75,163,195,.9);box-shadow:0 0 20px rgba(75,163,195,.3)}}
+.scan-frame{width:200px;height:200px;border:2px solid rgba(75,163,195,.5);border-radius:16px;margin:0 auto .75rem;position:relative;animation:scanAnim 2s ease-in-out infinite}
+/* Marker found flash */
+#marker-found-flash{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(68,204,136,.15);border:2px solid #44cc88;border-radius:16px;padding:.75rem 1.5rem;color:#44cc88;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .3s}
+#marker-found-flash.show{opacity:1}
+
 .sc{position:absolute;width:18px;height:18px;border-color:var(--accent);border-style:solid}
 .sc.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
 .sc.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
@@ -86,7 +101,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 #info-close{float:right;background:none;border:none;color:rgba(255,255,255,.35);cursor:pointer;font-size:14px;margin-top:-2px}
 
 /* 3D VIEWER */
-#viewer{position:fixed;inset:0;z-index:200;background:radial-gradient(ellipse at 25% 25%,#001e40 0%,#000 70%);display:none;flex-direction:column}
+#viewer{position:fixed;inset:0;z-index:1500;background:radial-gradient(ellipse at 25% 25%,#001e40 0%,#000 70%);display:none;flex-direction:column}
 #viewer.on{display:flex}
 #viewer-canvas{flex:1;width:100%;touch-action:none;cursor:grab}
 #viewer-canvas:active{cursor:grabbing}
@@ -106,6 +121,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 #vload.hidden{display:none}
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ── CRITICAL AR canvas rules ── */
+/* A-Frame scene must fill viewport and sit below the UI overlay */
+#the-scene { position: fixed !important; top: 0 !important; left: 0 !important;
+             width: 100% !important; height: 100% !important; z-index: 1 !important; }
+#the-scene.ar-hidden { display: none !important; }
+#the-scene.ar-visible { display: block !important; }
+/* The WebGL canvas A-Frame creates */
+.a-canvas { position: fixed !important; top: 0 !important; left: 0 !important;
+            width: 100% !important; height: 100% !important; }
+/* Hide A-Frame's own loading overlay */
+.arjs-loader { display: none !important; }
+
 .f1{animation:fadeUp .5s ease forwards}
 .f2{animation:fadeUp .5s ease .15s forwards;opacity:0}
 .f3{animation:fadeUp .5s ease .3s forwards;opacity:0}
@@ -152,7 +180,38 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 </div>
 
 <!-- A-Frame AR scene — created dynamically in startAR() to prevent premature camera initialisation -->
-<div id="ar-scene-wrapper"></div>
+<!--
+  A-Frame AR Scene — STATIC in the DOM (never injected via innerHTML).
+  innerHTML injection breaks A-Frame custom element registration.
+  We show/hide via CSS class ar-hidden / ar-visible.
+-->
+<a-scene id="the-scene"
+  class="ar-hidden"
+  embedded
+  arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+  renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true; colorManagement: true;"
+  vr-mode-ui="enabled: false"
+  loading-screen="enabled: false">
+
+  <a-assets id="a-assets" timeout="60000">
+    <!-- Asset items injected by JS after HEAD-checking which files exist -->
+  </a-assets>
+
+  <a-marker
+    id="hiro-marker"
+    preset="hiro"
+    smooth="true"
+    smoothCount="10"
+    smoothTolerance="0.01"
+    smoothThreshold="5"
+    emitevents="true">
+    <a-entity id="ar-root" position="0 0.05 0"></a-entity>
+  </a-marker>
+
+  <!-- Rear-facing camera -->
+  <a-entity camera look-controls="enabled: false" arjs-look-controls="enabled: false"></a-entity>
+
+</a-scene>
 
 <!-- AR overlay -->
 <div id="ar-ui">
@@ -161,13 +220,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
     <p id="ar-sub">Point camera at the Hiro marker on the poster</p>
   </div>
   <button id="back-btn" onclick="goBack()">← Back</button>
+  <div id="marker-found-flash">✓ Marker detected</div>
   <div id="scan-hint">
     <div class="scan-frame">
       <div class="sc tl"></div><div class="sc tr"></div>
       <div class="sc bl"></div><div class="sc br"></div>
+      <div class="scan-line"></div>
     </div>
-    <p>Point at the marker on the poster</p>
-    <small>Tap a component to learn more</small>
+    <p>Point camera at the Hiro marker</p>
+    <small>Hold steady 20–40 cm away · Good lighting helps</small>
   </div>
   <div id="info-panel">
     <button id="info-close" onclick="closeInfo()">✕</button>
@@ -248,12 +309,31 @@ let ray3,m3;
 //  BOOT
 // ════════════════════════════════════════════════════════
 async function boot(){
-  det('Ready to visualise…');
+  det('Checking models…');
   // Optimistically enable all models — GLTFLoader handles any actual load failures
-  KEYS.forEach(k=>{
-    glbOk[k]=true;
-    document.querySelector(`[data-m="${k}"]`).classList.add('glb-ok');
+  // HEAD-check each GLB file before promising it's available
+  const results = await Promise.all(KEYS.map(async k=>{
+    try{const r=await fetch(GLB+CFG[k].file,{method:'HEAD'});return{k,ok:r.ok};}
+    catch{return{k,ok:false};}
+  }));
+  let anyOk=false;
+  results.forEach(({k,ok})=>{
+    glbOk[k]=ok;
+    if(ok){
+      anyOk=true;
+      document.querySelector(`[data-m="${k}"]`).classList.add('glb-ok');
+      // Inject asset item so A-Frame preloads it
+      const item=document.createElement('a-asset-item');
+      item.id='glb-'+k;
+      item.setAttribute('src',GLB+CFG[k].file);
+      document.getElementById('a-assets').appendChild(item);
+    }
   });
+  // Status banner
+  const missing=results.filter(r=>!r.ok).map(r=>CFG[r.k].name);
+  const ban=document.getElementById('status-banner');
+  if(!anyOk){ban.textContent='No GLB models found in /models/ — showing procedural geometry. Upload your Fusion 360 exports to see real CAD.';ban.classList.add('show');}
+  else if(missing.length){ban.textContent=`${results.length-missing.length}/${KEYS.length} models loaded. Fallback for: ${missing.join(', ')}.`;ban.classList.add('show');}
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('landing').style.display='flex';
 }
@@ -282,7 +362,10 @@ function goBack(){
   document.getElementById('landing').classList.remove('hidden');
   document.getElementById('landing').style.display='flex';
   document.getElementById('ar-ui').classList.remove('on');
-  document.getElementById('ar-scene-wrapper').innerHTML='';
+  // Hide AR scene without destroying it (innerHTML='' breaks A-Frame re-init)
+  const scene = document.getElementById('the-scene');
+  if(scene){ scene.classList.remove('ar-visible'); scene.classList.add('ar-hidden'); }
+  document.getElementById('scan-hint').classList.remove('hidden');
   document.getElementById('viewer').classList.remove('on');
   closeInfo();
   if(animId){cancelAnimationFrame(animId);animId=null}
@@ -294,30 +377,48 @@ function goBack(){
 // ════════════════════════════════════════════════════════
 //  AR
 // ════════════════════════════════════════════════════════
+// Track whether A-Frame scene has been initialised
+let arSceneReady = false;
+
 function startAR(){
-  const assetItems=KEYS.map(k=>`<a-asset-item id="glb-${k}" src="${GLB}${CFG[k].file}"></a-asset-item>`).join('');
-  document.getElementById('ar-scene-wrapper').innerHTML=`
-    <a-scene embedded
-      arjs="sourceType:webcam;debugUIEnabled:false;detectionMode:mono_and_matrix;matrixCodeType:3x3;facingMode:environment;"
-      vr-mode-ui="enabled:false"
-      renderer="antialias:true;alpha:true;logarithmicDepthBuffer:true;colorManagement:true;"
-      webkit-playsinline playsinline loading-screen="enabled:false"
-      style="position:fixed;inset:0;z-index:100;width:100%;height:100%;">
-      <a-assets id="a-assets" timeout="30000">${assetItems}</a-assets>
-      <a-marker id="hiro-marker" preset="hiro" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5" emitevents="true">
-        <a-entity id="ar-root" position="0 0.05 0"></a-entity>
-      </a-marker>
-      <a-entity camera></a-entity>
-    </a-scene>`;
+  const scene = document.getElementById('the-scene');
+
+  // Show the static A-Frame scene
+  scene.classList.remove('ar-hidden');
+  scene.classList.add('ar-visible');
   document.getElementById('ar-ui').classList.add('on');
-  const scene=document.querySelector('#ar-scene-wrapper a-scene');
-  scene.addEventListener('loaded',()=>{
+  document.getElementById('ar-title').textContent = CFG[model].name;
+
+  if(arSceneReady){
+    // Already booted — just rebuild model
     buildARModel(model);
-    const mk=document.getElementById('hiro-marker');
-    if(mk){
-      mk.addEventListener('markerFound',()=>document.getElementById('scan-hint').classList.add('hidden'));
-      mk.addEventListener('markerLost',()=>document.getElementById('scan-hint').classList.remove('hidden'));
+  } else {
+    // First launch — wait for scene to initialise, then build
+    scene.addEventListener('loaded', ()=>{
+      arSceneReady = true;
+      buildARModel(model);
+      wireMarkerEvents();
+    }, {once: true});
+    // Handle case where scene already loaded before listener registered
+    if(scene.hasLoaded){
+      arSceneReady = true;
+      buildARModel(model);
+      wireMarkerEvents();
     }
+  }
+}
+
+function wireMarkerEvents(){
+  const mk = document.getElementById('hiro-marker');
+  if(!mk) return;
+  mk.addEventListener('markerFound', ()=>{
+    document.getElementById('scan-hint').classList.add('hidden');
+    const flash = document.getElementById('marker-found-flash');
+    flash.classList.add('show');
+    setTimeout(()=>flash.classList.remove('show'), 1500);
+  });
+  mk.addEventListener('markerLost', ()=>{
+    document.getElementById('scan-hint').classList.remove('hidden');
   });
 }
 
@@ -484,7 +585,7 @@ async function loadModel3(k){
   document.getElementById('xpct').textContent='0%';
   if(glbOk[k]){
     try{
-      const {GLTFLoader}=await import('https://esm.run/three@0.128/examples/jsm/loaders/GLTFLoader');
+      const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.128/examples/jsm/loaders/GLTFLoader.js');
       new GLTFLoader().load(
         GLB+CFG[k].file,
         gltf=>{
