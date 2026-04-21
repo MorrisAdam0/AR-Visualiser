@@ -92,7 +92,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 #viewer-canvas:active{cursor:grabbing}
 #viewer-header{padding:.85rem 1.25rem .5rem;background:rgba(0,33,71,.9);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(75,163,195,.15)}
 #viewer-header h2{font-family:var(--serif);font-size:14px;color:#fff;font-weight:normal}
-#viewer-footer{padding:.6rem 1rem 1.25rem;background:rgba(0,0,0,.7);border-top:1px solid rgba(255,255,255,.05)}
+#viewer-footer{padding:.5rem .9rem 1rem;background:rgba(0,0,0,.8);border-top:1px solid rgba(255,255,255,.05);max-height:45vh;overflow-y:auto}
 .slider-row{display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem}
 .slbl{font-size:10px;color:rgba(255,255,255,.4);white-space:nowrap}
 #explode-slider{flex:1;-webkit-appearance:none;height:3px;background:rgba(255,255,255,.15);border-radius:2px;outline:none}
@@ -100,6 +100,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 .part-btns{display:flex;gap:.4rem;flex-wrap:wrap}
 .pbtn{padding:.35rem .75rem;border-radius:20px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(255,255,255,.65);font-size:10px;font-family:var(--sans);cursor:pointer;transition:all .15s}
 .pbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.comp-btn{font-size:10px;padding:.3rem .65rem}
+.comp-btn.on{background:rgba(75,163,195,.2);border-color:var(--accent);color:rgba(255,255,255,.9)}
+.comp-btn:not(.on){background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.3);text-decoration:line-through}
+.comp-section-label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:.35rem;margin-top:.1rem}
 #vload{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:10}
 #vload .ring{margin:0 auto .75rem}
 #vload p{font-size:12px;color:rgba(255,255,255,.5)}
@@ -199,14 +203,27 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
       <span class="slbl">Explode</span>
       <input type="range" id="explode-slider" min="0" max="100" value="0" step="1" oninput="setExplode(this.value/100)">
       <span class="slbl" id="xpct">0%</span>
+      <button class="pbtn" id="reset-view-btn" onclick="resetView()" style="margin-left:.5rem;padding:.3rem .7rem;">↺ Reset</button>
     </div>
-    <div class="part-btns">
-      <button class="pbtn on" onclick="filterParts(this,'all')">All</button>
-      <button class="pbtn" onclick="filterParts(this,'plate')">Al Plates</button>
-      <button class="pbtn" onclick="filterParts(this,'gasket')">Gaskets</button>
-      <button class="pbtn" onclick="filterParts(this,'membrane')">Membrane</button>
-      <button class="pbtn" onclick="filterParts(this,'gdl')">GDL</button>
-      <button class="pbtn" onclick="filterParts(this,'beam')">Beams</button>
+    <div class="comp-section-label">Toggle Components</div>
+    <div class="part-btns" id="comp-toggle-btns">
+      <button class="pbtn comp-btn on" data-comp="anode"          onclick="toggleComp(this)">🔵 Anode Plate</button>
+      <button class="pbtn comp-btn on" data-comp="cathode"        onclick="toggleComp(this)">🔴 Cathode Plate</button>
+      <button class="pbtn comp-btn on" data-comp="mea"            onclick="toggleComp(this)">🟡 MEA</button>
+      <button class="pbtn comp-btn on" data-comp="ptfe_gaskets"   onclick="toggleComp(this)">⬜ PTFE Gaskets</button>
+      <button class="pbtn comp-btn on" data-comp="ptfe_bushings"  onclick="toggleComp(this)">⬛ PTFE Bushings</button>
+      <button class="pbtn comp-btn on" data-comp="fasteners"      onclick="toggleComp(this)">🔩 Fasteners</button>
+      <button class="pbtn comp-btn on" data-comp="swagelok_anode" onclick="toggleComp(this)">🟢 Swagelok Anode</button>
+      <button class="pbtn comp-btn on" data-comp="swagelok_cathode" onclick="toggleComp(this)">🟠 Swagelok Cathode</button>
+      <button class="pbtn comp-btn on" data-comp="anode_puck"     onclick="toggleComp(this)">◽ Anode Seal Puck</button>
+      <button class="pbtn comp-btn on" data-comp="cathode_puck"   onclick="toggleComp(this)">◾ Cathode Seal Puck</button>
+    </div>
+    <div class="part-btns" style="margin-top:.4rem;">
+      <button class="pbtn" onclick="showAllComps()" style="font-size:9px;">Show All</button>
+      <button class="pbtn" onclick="hideAllComps()" style="font-size:9px;">Hide All</button>
+      <button class="pbtn" onclick="showOnlyComp('mea')" style="font-size:9px;">MEA Only</button>
+      <button class="pbtn" onclick="showOnlyComp('anode')" style="font-size:9px;">Anode Only</button>
+      <button class="pbtn" onclick="showOnlyComp('cathode')" style="font-size:9px;">Cathode Only</button>
     </div>
   </div>
 </div>
@@ -219,10 +236,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 // ════════════════════════════════════════════════════════
 const GLB = './models/';
 const CFG = {
-  full:     { name:'Full Cell Assembly',    file:'pefc-complete.glb', scale:'0.04 0.04 0.04',  rotX:-90 },
-  exploded: { name:'Exploded View',         file:'pefc-explosion.glb', scale:'0.04 0.04 0.04',  rotX:-90 },
-  membrane: { name:'Nafion 117 Membrane',   file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90 },
-  beam:     { name:'Neutron Beam Geometry', file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90 },
+  full:     { name:'Full Cell Assembly',    file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
+  exploded: { name:'Exploded View',         file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
+  membrane: { name:'Nafion 117 Membrane',   file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
+  beam:     { name:'Neutron Beam Geometry', file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
 };
 const KEYS = ['full','exploded','membrane','beam'];
 const INFO = {
@@ -329,7 +346,7 @@ function buildARModel(k){
     const e=document.createElement('a-gltf-model');
     e.setAttribute('src','#glb-'+k);
     e.setAttribute('scale',CFG[k].scale);
-    e.setAttribute('rotation',CFG[k].rotX+' 0 0');
+    e.setAttribute('rotation', CFG[k].rotX+' '+(CFG[k].rotY||0)+' 0');
     e.setAttribute('shadow','cast:true;receive:true');
     e.setAttribute('animation-mixer','');
     root.appendChild(e);
@@ -496,7 +513,9 @@ async function loadModel3(k){
             m.scale.setScalar(sc);
             const ctr=box.getCenter(new THREE.Vector3());
             m.position.sub(ctr.multiplyScalar(sc));
-            m.rotation.x=-Math.PI/2;
+            // Rotate model: -PI/2 on X to stand upright (Fusion 360 Z-up → Y-up)
+            // Additional PI/2 on Y so the cell faces the viewer correctly
+            m.rotation.set(-Math.PI/2, Math.PI/2, 0);
             m.traverse(ch=>{
               if(!ch.isMesh)return;
               if(ch.name==='Cube'){ch.visible=false;return;}
@@ -530,6 +549,10 @@ async function loadModel3(k){
             console.log('GLB parts loaded:',parts.length,'types:',tally);
             glbRoot=m;
             S3.add(m);
+            // Reset comp visibility state and apply
+            compVisibility = Object.fromEntries(Object.keys(COMP_NODES).map(k=>[k,true]));
+            document.querySelectorAll('.comp-btn').forEach(b=>b.classList.add('on'));
+            applyCompVisibility();
             document.getElementById('vload').classList.add('hidden');
           }catch(err){console.error('GLB load error:',err);buildProc3(k);}
         },
@@ -624,8 +647,86 @@ function applyExplode(){
   });
 }
 function setExplode(v){xTgt=v;document.getElementById('xpct').textContent=Math.round(v*100)+'%';console.log('setExplode',v,'parts:',parts.length,'sample centroid:',parts.find(p=>p.geomCentroid)?.geomCentroid);}
+// ══ COMPONENT VISIBILITY — keyed by GLB root node names ══
+// Maps UI key → array of GLB root node name substrings to match
+const COMP_NODES = {
+  anode:           ['Anode :1'],
+  cathode:         ['Catode:1'],
+  mea:             ['MEA:1'],
+  ptfe_gaskets:    ['PTFE Gaskets:1'],
+  ptfe_bushings:   ['Bolt Brushings:1'],
+  fasteners:       ['Fasteners:1'],
+  swagelok_anode:  ['Swagelock Male Anode :1'],
+  swagelok_cathode:['Swagelock Cathode:1'],
+  anode_puck:      ['Anode Sealing Puck:1'],
+  cathode_puck:    ['Cathode Sealing Puck:1'],
+};
+// Additional info for each component
+const COMP_INFO = {
+  anode:           {title:'Anode Plate',         desc:'Aluminium 6061 current collector with serpentine flow field. 1 mm neutron-transparent window region. H₂ inlet/outlet via Swagelok fittings.',specs:[['Material','Al 6061'],['Window','1 mm Al'],['Function','Current collection + gas distribution']]},
+  cathode:         {title:'Cathode Plate',        desc:'Mirror of anode plate. SAXS sealing puck sits on outer face, enabling simultaneous X-ray measurement through the stack.',specs:[['Material','Al 6061'],['Feature','SAXS sealing puck face'],['Function','Current collection + gas distribution']]},
+  mea:             {title:'Membrane Electrode Assembly',desc:'Three-layer MEA: anode GDL / Nafion 117 PEM / cathode GDL. The principal SANS, SAXS and QENS target. Proton transport occurs through the Nafion layer.',specs:[['Membrane','Nafion 117, 183 μm'],['EW','1100 g/eq'],['Ionomer peak','~0.15 Å⁻¹'],['d-spacing','~4 nm']]},
+  ptfe_gaskets:    {title:'PTFE Gaskets',          desc:'Two PTFE sheet gaskets provide uniform compression across the active area and electrical isolation between Al plates and the MEA.',specs:[['Material','PTFE'],['Thickness','~0.3 mm'],['Function','Seal + electrical isolation']]},
+  ptfe_bushings:   {title:'PTFE Bolt Bushings',   desc:'Eight PTFE bushings insulate the M4 stainless steel fasteners from the aluminium plates, preventing electrical short-circuit through the bolts.',specs:[['Material','PTFE'],['Count','8 (one per bolt)'],['Function','Electrical isolation of fasteners']]},
+  fasteners:       {title:'M4 Stainless Steel Fasteners',desc:'Eight 18-8 stainless steel socket head cap screws provide uniform clamping force. PTFE bushings prevent contact with Al plates.',specs:[['Material','18-8 SS'],['Thread','M4'],['Count','8'],['Drive','Socket head (hex)']]},
+  swagelok_anode:  {title:'Swagelok Fittings — Anode', desc:'Two SS-400-1/4 Swagelok male connectors deliver humidified H₂ to the anode flow field inlet and outlet.',specs:[['Part','SS-400-1/4'],['Fluid','Humidified H₂'],['Count','2 (inlet + outlet)']]},
+  swagelok_cathode:{title:'Swagelok Fittings — Cathode',desc:'Two SS-400-1/4 Swagelok male connectors deliver humidified O₂/air to the cathode flow field.',specs:[['Part','SS-400-1/4'],['Fluid','Humidified O₂/air'],['Count','2 (inlet + outlet)']]},
+  anode_puck:      {title:'Anode Sealing Puck',   desc:'Acrylic sealing puck on the outer anode face. Provides a flat optical window for X-ray beam entry on the anode side.',specs:[['Material','Acrylic / PMMA'],['Function','Beam window + sealing']]},
+  cathode_puck:    {title:'Cathode Sealing Puck',  desc:'Matched sealing puck on cathode outer face. Together with the anode puck, defines the X-ray/neutron transmission path through the cell.',specs:[['Material','Acrylic / PMMA'],['Function','Beam window + sealing']]},
+};
+
+let compVisibility = Object.fromEntries(Object.keys(COMP_NODES).map(k=>[k,true]));
+
+function toggleComp(btn){
+  const comp=btn.dataset.comp;
+  compVisibility[comp]=!compVisibility[comp];
+  btn.classList.toggle('on',compVisibility[comp]);
+  applyCompVisibility();
+  // show info for tapped component
+  if(compVisibility[comp]) openInfo(COMP_INFO[comp]||INFO[model]);
+}
+
+function applyCompVisibility(){
+  if(!glbRoot) return;
+  glbRoot.traverse(node=>{
+    if(!node.name) return;
+    for(const [comp, patterns] of Object.entries(COMP_NODES)){
+      if(patterns.some(p=>node.name===p)){
+        node.visible=compVisibility[comp];
+        return;
+      }
+    }
+  });
+}
+
+function showAllComps(){
+  Object.keys(compVisibility).forEach(k=>compVisibility[k]=true);
+  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.add('on'));
+  applyCompVisibility();
+}
+function hideAllComps(){
+  Object.keys(compVisibility).forEach(k=>compVisibility[k]=false);
+  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.remove('on'));
+  applyCompVisibility();
+}
+function showOnlyComp(comp){
+  Object.keys(compVisibility).forEach(k=>compVisibility[k]=(k===comp));
+  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.toggle('on',b.dataset.comp===comp));
+  applyCompVisibility();
+}
+
+function resetView(){
+  rx=0.25; ry=0.5;
+  C3.position.set(18,12,22); C3.lookAt(0,0,0);
+  showAllComps();
+  document.getElementById('explode-slider').value=0;
+  setExplode(0);
+}
+
 function filterParts(btn,part){
-  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  // Legacy — kept for procedural fallback
+  document.querySelectorAll('.pbtn:not(.comp-btn)').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
   parts.forEach(p=>{if(p.mesh)p.mesh.visible=(part==='all'||p.type===part)});
 }
 
@@ -643,7 +744,23 @@ function setupTouch(canvas){
     m3.x=((e.clientX-rc.left)/rc.width)*2-1;m3.y=-((e.clientY-rc.top)/rc.height)*2+1;
     ray3.setFromCamera(m3,C3);
     const hits=ray3.intersectObjects(parts.map(p=>p.mesh).filter(Boolean),true);
-    if(hits.length){const p=parts.find(pp=>pp.mesh===hits[0].object||pp.mesh===hits[0].object.parent);if(p?.mesh?.userData?.info)openInfo(p.mesh.userData.info)}
+    if(hits.length){
+      const hitObj=hits[0].object;
+      // Walk up to find which COMP_NODES group this belongs to
+      let compKey=null;
+      if(glbRoot){
+        let cur=hitObj;
+        while(cur&&cur!==glbRoot){
+          for(const [k,patterns] of Object.entries(COMP_NODES)){
+            if(patterns.some(p=>cur.name===p)){compKey=k;break;}
+          }
+          if(compKey)break;
+          cur=cur.parent;
+        }
+      }
+      const info = (compKey&&COMP_INFO[compKey]) || hitObj.userData?.info || INFO[model];
+      openInfo(info);
+    }
   });
 }
 function hyp(t){return Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY)}
