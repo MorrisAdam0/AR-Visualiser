@@ -236,8 +236,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 // ════════════════════════════════════════════════════════
 const GLB = './models/';
 const CFG = {
-  full:     { name:'Full Cell Assembly',    file:'pefc-complete.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
-  exploded: { name:'Exploded View',         file:'pefc-explosion.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
+  full:     { name:'Full Cell Assembly',    file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
+  exploded: { name:'Exploded View',         file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
   membrane: { name:'Nafion 117 Membrane',   file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
   beam:     { name:'Neutron Beam Geometry', file:'pefc-exploded.glb', scale:'0.04 0.04 0.04',  rotX:-90, rotY:90 },
 };
@@ -549,10 +549,12 @@ async function loadModel3(k){
             console.log('GLB parts loaded:',parts.length,'types:',tally);
             glbRoot=m;
             S3.add(m);
-            // Reset comp visibility state and apply
+            // Reset comp visibility state, rebuild node map, apply
             compVisibility = Object.fromEntries(Object.keys(COMP_NODES).map(k=>[k,true]));
+            compNodeMap = {};        // force rebuild on next applyCompVisibility call
+            buildCompNodeMap();      // eagerly build so toggles work immediately
             document.querySelectorAll('.comp-btn').forEach(b=>b.classList.add('on'));
-            applyCompVisibility();
+            // Everything visible by default — no need to call applyCompVisibility here
             document.getElementById('vload').classList.add('hidden');
           }catch(err){console.error('GLB load error:',err);buildProc3(k);}
         },
@@ -676,42 +678,63 @@ const COMP_INFO = {
 };
 
 let compVisibility = Object.fromEntries(Object.keys(COMP_NODES).map(k=>[k,true]));
+// Map from comp key → array of THREE.Object3D nodes (built after GLB loads)
+let compNodeMap = {};
 
-function toggleComp(btn){
-  const comp=btn.dataset.comp;
-  compVisibility[comp]=!compVisibility[comp];
-  btn.classList.toggle('on',compVisibility[comp]);
-  applyCompVisibility();
-  // show info for tapped component
-  if(compVisibility[comp]) openInfo(COMP_INFO[comp]||INFO[model]);
+// Call once after glbRoot is set — walks entire scene and maps comp keys to node refs
+function buildCompNodeMap(){
+  compNodeMap = {};
+  if(!glbRoot) return;
+  glbRoot.traverse(node=>{
+    for(const [comp, patterns] of Object.entries(COMP_NODES)){
+      if(patterns.some(p => p === node.name)){
+        if(!compNodeMap[comp]) compNodeMap[comp] = [];
+        compNodeMap[comp].push(node);
+      }
+    }
+  });
+  console.log('compNodeMap built:', Object.fromEntries(
+    Object.entries(compNodeMap).map(([k,v])=>[k, v.map(n=>n.name)])
+  ));
+}
+
+// Set visibility on a node AND all its descendants (Three.js requires explicit traversal)
+function setNodeGroupVisible(node, visible){
+  node.visible = visible;
+  node.traverse(child => { child.visible = visible; });
 }
 
 function applyCompVisibility(){
   if(!glbRoot) return;
-  glbRoot.traverse(node=>{
-    if(!node.name) return;
-    for(const [comp, patterns] of Object.entries(COMP_NODES)){
-      if(patterns.some(p=>node.name===p)){
-        node.visible=compVisibility[comp];
-        return;
-      }
-    }
-  });
+  // If map not built yet, build it now
+  if(Object.keys(compNodeMap).length === 0) buildCompNodeMap();
+  for(const [comp, nodes] of Object.entries(compNodeMap)){
+    const vis = compVisibility[comp] !== false; // default true
+    nodes.forEach(node => setNodeGroupVisible(node, vis));
+  }
+}
+
+function toggleComp(btn){
+  const comp = btn.dataset.comp;
+  compVisibility[comp] = !compVisibility[comp];
+  btn.classList.toggle('on', compVisibility[comp]);
+  applyCompVisibility();
+  if(compVisibility[comp]) openInfo(COMP_INFO[comp] || INFO[model]);
 }
 
 function showAllComps(){
-  Object.keys(compVisibility).forEach(k=>compVisibility[k]=true);
-  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.add('on'));
+  Object.keys(compVisibility).forEach(k => compVisibility[k] = true);
+  document.querySelectorAll('.comp-btn').forEach(b => b.classList.add('on'));
   applyCompVisibility();
 }
 function hideAllComps(){
-  Object.keys(compVisibility).forEach(k=>compVisibility[k]=false);
-  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.remove('on'));
+  Object.keys(compVisibility).forEach(k => compVisibility[k] = false);
+  document.querySelectorAll('.comp-btn').forEach(b => b.classList.remove('on'));
   applyCompVisibility();
 }
 function showOnlyComp(comp){
-  Object.keys(compVisibility).forEach(k=>compVisibility[k]=(k===comp));
-  document.querySelectorAll('.comp-btn').forEach(b=>b.classList.toggle('on',b.dataset.comp===comp));
+  Object.keys(compVisibility).forEach(k => compVisibility[k] = (k === comp));
+  document.querySelectorAll('.comp-btn').forEach(b => b.classList.toggle('on', b.dataset.comp === comp));
   applyCompVisibility();
 }
 
