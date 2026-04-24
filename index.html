@@ -4,192 +4,164 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Operando PEFC — 3D Visualiser | UCL</title>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Operando PEFC — Visualiser | UCL</title>
+
+<!-- AR.js Three.js standalone (no A-Frame) -->
+<script src="https://cdn.jsdelivr.net/npm/ar.js@2.2.2/three.js/build/ar.js"></script>
+
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --dark:#001a35;
+  --dark:#001428;
   --accent:#4ba3c3;
   --gold:#c8a951;
-  --red:#d64242;
-  --green:#44cc88;
-  --panel:rgba(0,20,45,0.92);
-  --border:rgba(75,163,195,0.18);
+  --panel:rgba(0,16,40,0.93);
+  --border:rgba(75,163,195,0.2);
   --sans:'SF Pro Text',-apple-system,'Helvetica Neue',sans-serif;
   --serif:'Georgia','Times New Roman',serif;
 }
 html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var(--sans)}
 
-/* ─── LOADING ─── */
+/* ─── LOADING ─────────────────────────────────────────── */
 #loading-screen{
-  position:fixed;inset:0;z-index:2000;
-  background:var(--dark);
+  position:fixed;inset:0;z-index:3000;background:var(--dark);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;
+  transition:opacity .5s ease;
 }
-#loading-screen.hidden{opacity:0;pointer-events:none;transition:opacity .4s ease}
+#loading-screen.hidden{opacity:0;pointer-events:none}
 .ring{
-  width:40px;height:40px;border-radius:50%;
-  border:2px solid rgba(75,163,195,.15);
-  border-top-color:var(--accent);
+  width:38px;height:38px;border-radius:50%;
+  border:2px solid rgba(75,163,195,.12);border-top-color:var(--accent);
   animation:spin .7s linear infinite;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
-#loading-screen p{font-size:12px;color:rgba(255,255,255,.4);letter-spacing:.06em}
+#loading-screen p{font-size:12px;color:rgba(255,255,255,.35);letter-spacing:.08em}
 
-/* ─── LANDING ─── */
+/* ─── LANDING ──────────────────────────────────────────── */
 #landing{
   position:fixed;inset:0;z-index:1000;
-  background:radial-gradient(ellipse at 30% 20%,#002d5a 0%,#001020 55%,#000 100%);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:2rem 1.5rem;
-  transition:opacity .4s ease;
+  background:radial-gradient(ellipse at 30% 15%,#002d5a 0%,#000e20 50%,#000 100%);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:2rem 1.5rem;overflow-y:auto;transition:opacity .4s ease;
 }
+#landing.visible{display:flex}
 #landing.hidden{opacity:0;pointer-events:none}
-
-.wordmark{
-  font-family:var(--serif);font-size:9px;letter-spacing:.35em;
-  color:var(--gold);text-transform:uppercase;opacity:.7;margin-bottom:1.5rem;
-  text-align:center;
+.wordmark{font-family:var(--serif);font-size:9px;letter-spacing:.35em;color:var(--gold);
+  text-transform:uppercase;opacity:.65;margin-bottom:1.4rem;text-align:center}
+.hero-title{font-family:var(--serif);font-size:clamp(1.4rem,5vw,2rem);
+  font-weight:normal;color:#fff;text-align:center;line-height:1.3;margin-bottom:.45rem}
+.hero-sub{font-size:11.5px;color:rgba(75,163,195,.8);text-align:center;
+  line-height:1.8;margin-bottom:1.75rem;max-width:360px}
+.mode-tabs{display:flex;gap:.5rem;width:100%;max-width:440px;margin-bottom:1rem}
+.mode-tab{
+  flex:1;padding:.55rem .4rem;border-radius:10px;
+  border:1px solid rgba(255,255,255,.1);background:transparent;
+  color:rgba(255,255,255,.5);font-size:11px;font-family:var(--sans);
+  cursor:pointer;transition:all .2s;text-align:center;
 }
-.hero-title{
-  font-family:var(--serif);font-size:clamp(1.4rem,5vw,2.1rem);
-  font-weight:normal;color:#fff;text-align:center;line-height:1.3;
-  margin-bottom:.5rem;
-}
-.hero-sub{
-  font-size:12px;color:rgba(75,163,195,.85);text-align:center;
-  line-height:1.75;margin-bottom:2rem;max-width:380px;
-}
-
-.model-grid{
-  display:grid;grid-template-columns:1fr 1fr;gap:.6rem;
-  width:100%;max-width:440px;margin-bottom:1.75rem;
-}
+.mode-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.model-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;
+  width:100%;max-width:440px;margin-bottom:1.5rem}
 .model-btn{
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:12px;padding:.9rem .75rem;
-  cursor:pointer;transition:all .2s;text-align:left;color:#fff;
-  position:relative;overflow:hidden;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+  border-radius:12px;padding:.85rem .75rem;cursor:pointer;transition:all .2s;
+  text-align:left;color:#fff;
 }
-.model-btn::after{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,var(--accent),transparent);
-  opacity:0;transition:opacity .2s;
+.model-btn.on{border-color:var(--accent);background:rgba(75,163,195,.07)}
+.model-btn .icon{font-size:1.3rem;margin-bottom:.35rem;display:block}
+.model-btn .lbl{font-size:11px;font-weight:600;display:block;margin-bottom:2px}
+.model-btn .desc{font-size:10px;color:rgba(255,255,255,.32);display:block;line-height:1.4}
+#ar-note{
+  width:100%;max-width:440px;margin-bottom:1.2rem;
+  background:rgba(200,169,81,.08);border:1px solid rgba(200,169,81,.22);
+  border-radius:10px;padding:.55rem .85rem;font-size:10.5px;
+  color:rgba(200,169,81,.85);line-height:1.6;display:none;
 }
-.model-btn:hover::after{opacity:.1}
-.model-btn.on{border-color:var(--accent);background:rgba(75,163,195,.08)}
-.model-btn .icon{font-size:1.4rem;margin-bottom:.4rem;display:block}
-.model-btn .lbl{font-size:11px;font-weight:600;letter-spacing:.02em;display:block;margin-bottom:3px}
-.model-btn .desc{font-size:10px;color:rgba(255,255,255,.35);display:block;line-height:1.4}
-
+#ar-note.show{display:block}
 .launch-btn{
-  background:var(--accent);color:#fff;border:none;
-  border-radius:50px;padding:.9rem 2.5rem;
-  font-size:14px;font-weight:600;cursor:pointer;
+  background:var(--accent);color:#fff;border:none;border-radius:50px;
+  padding:.9rem 2.5rem;font-size:14px;font-weight:600;cursor:pointer;
   letter-spacing:.04em;width:100%;max-width:300px;
-  animation:glow 2.5s ease-in-out infinite;
-  transition:transform .15s;
+  animation:glow 2.5s ease-in-out infinite;transition:transform .15s;
 }
 .launch-btn:active{transform:scale(.97)}
-@keyframes glow{
-  0%,100%{box-shadow:0 0 18px rgba(75,163,195,.3)}
-  50%{box-shadow:0 0 40px rgba(75,163,195,.65)}
-}
-.info-foot{
-  position:absolute;bottom:1.2rem;left:0;right:0;
-  text-align:center;font-size:10px;color:rgba(255,255,255,.18);line-height:1.7;
-}
+@keyframes glow{0%,100%{box-shadow:0 0 16px rgba(75,163,195,.3)}50%{box-shadow:0 0 36px rgba(75,163,195,.65)}}
+.info-foot{position:absolute;bottom:1rem;left:0;right:0;text-align:center;
+  font-size:10px;color:rgba(255,255,255,.15);line-height:1.7}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.f1{animation:fadeUp .5s ease forwards}
+.f2{animation:fadeUp .5s .12s ease both}
+.f3{animation:fadeUp .5s .24s ease both}
+.f4{animation:fadeUp .5s .36s ease both}
+.f5{animation:fadeUp .5s .48s ease both}
 
-/* ─── 3D VIEWER ─── */
+/* ─── 3D VIEWER ─────────────────────────────────────────── */
 #viewer{
   position:fixed;inset:0;z-index:200;
-  background:radial-gradient(ellipse at 20% 15%,#001e3d 0%,#000510 70%);
+  background:radial-gradient(ellipse at 20% 15%,#001c38 0%,#000410 75%);
   display:none;flex-direction:column;
 }
 #viewer.on{display:flex}
-
 #viewer-header{
-  flex-shrink:0;
-  padding:.75rem 1rem .6rem;
-  background:rgba(0,15,35,.95);
-  border-bottom:1px solid var(--border);
+  flex-shrink:0;padding:.7rem 1rem .6rem;
+  background:rgba(0,12,30,.95);border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;gap:.5rem;
   backdrop-filter:blur(10px);
 }
-#viewer-header h2{
-  font-family:var(--serif);font-size:13px;color:#fff;
-  font-weight:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
+#viewer-header h2{font-family:var(--serif);font-size:13px;color:#fff;
+  font-weight:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbtns{display:flex;gap:.35rem;flex-shrink:0}
 .hbtn{
-  flex-shrink:0;
-  background:rgba(75,163,195,.12);
-  border:1px solid rgba(75,163,195,.3);
-  border-radius:8px;color:var(--accent);
-  padding:.4rem .8rem;font-size:11px;
-  font-family:var(--sans);cursor:pointer;
-  transition:all .15s;white-space:nowrap;
+  background:rgba(75,163,195,.1);border:1px solid rgba(75,163,195,.28);
+  border-radius:8px;color:var(--accent);padding:.38rem .75rem;
+  font-size:11px;font-family:var(--sans);cursor:pointer;transition:all .15s;
 }
-.hbtn:hover{background:rgba(75,163,195,.22)}
-
-/* canvas area */
-#canvas-wrap{
-  flex:1;position:relative;overflow:hidden;
-  min-height:0;
-}
-#viewer-canvas{
-  width:100%;height:100%;
-  touch-action:none;cursor:grab;display:block;
-}
+.hbtn:hover{background:rgba(75,163,195,.2)}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;min-height:0}
+#viewer-canvas{width:100%;height:100%;touch-action:none;cursor:grab;display:block}
 #viewer-canvas:active{cursor:grabbing}
-
-/* loading overlay */
-#vload{
-  position:absolute;top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  text-align:center;pointer-events:none;z-index:10;
-}
+#vload{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;z-index:10}
 #vload.hidden{display:none}
-#vload .ring{margin:0 auto .6rem}
-#vload p{font-size:11px;color:rgba(255,255,255,.45)}
-
-/* error overlay */
+#vload .ring{margin:0 auto .5rem}
+#vload p{font-size:11px;color:rgba(255,255,255,.4)}
 #verr{
-  position:absolute;top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  background:rgba(200,50,50,.15);
-  border:1px solid rgba(200,50,50,.4);
-  border-radius:12px;padding:1.25rem 1.5rem;
-  text-align:center;pointer-events:none;z-index:10;
-  display:none;max-width:280px;
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(180,30,30,.12);border:1px solid rgba(200,60,60,.35);
+  border-radius:12px;padding:1.2rem 1.5rem;text-align:center;
+  pointer-events:none;z-index:10;display:none;max-width:280px;
 }
-#verr p{font-size:12px;color:rgba(255,180,180,.8);line-height:1.6}
-
-/* ─── FOOTER CONTROLS ─── */
+#verr p{font-size:11.5px;color:rgba(255,170,170,.8);line-height:1.65;white-space:pre-line}
+#info-panel{
+  position:absolute;bottom:0;left:0;right:0;
+  background:var(--panel);backdrop-filter:blur(14px);
+  border-top:1px solid var(--border);padding:.85rem 1rem 1.1rem;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);
+  z-index:20;max-height:55%;overflow-y:auto;
+}
+#info-panel.show{transform:translateY(0)}
+#info-panel h3{font-family:var(--serif);font-size:13px;color:var(--gold);font-weight:normal;margin-bottom:.35rem}
+.ip-desc{font-size:11px;color:rgba(255,255,255,.6);line-height:1.65;margin-bottom:.55rem}
+.spec-row{display:flex;justify-content:space-between;padding:.2rem 0;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:10.5px}
+.spec-row:last-child{border-bottom:none}
+.sk{color:rgba(255,255,255,.32)}.sv{color:var(--accent);font-weight:600}
+#info-close{float:right;background:none;border:none;color:rgba(255,255,255,.28);cursor:pointer;font-size:16px;padding:0 0 0 .5rem}
 #viewer-footer{
-  flex-shrink:0;
-  background:rgba(0,10,25,.95);
-  border-top:1px solid var(--border);
-  backdrop-filter:blur(10px);
-  padding:.6rem .9rem .85rem;
-  max-height:45vh;overflow-y:auto;
+  flex-shrink:0;background:rgba(0,8,22,.96);border-top:1px solid var(--border);
+  backdrop-filter:blur(10px);padding:.6rem .9rem .9rem;max-height:42vh;overflow-y:auto;
 }
-#viewer-footer::-webkit-scrollbar{width:3px}
-#viewer-footer::-webkit-scrollbar-track{background:transparent}
+#viewer-footer::-webkit-scrollbar{width:2px}
 #viewer-footer::-webkit-scrollbar-thumb{background:var(--accent);border-radius:2px}
-
-.ctrl-section{margin-bottom:.65rem}
-.ctrl-label{
-  font-size:9px;letter-spacing:.12em;text-transform:uppercase;
-  color:rgba(255,255,255,.28);margin-bottom:.4rem;display:block;
-}
-
-/* explode slider */
-.slider-row{display:flex;align-items:center;gap:.65rem}
-.slbl{font-size:10px;color:rgba(255,255,255,.35);white-space:nowrap}
+.ctrl-section{margin-bottom:.6rem}
+.ctrl-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(255,255,255,.25);margin-bottom:.4rem;display:block}
+.slider-row{display:flex;align-items:center;gap:.6rem}
+.slbl{font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap}
 #explode-slider{
   flex:1;-webkit-appearance:none;height:3px;
-  background:rgba(255,255,255,.12);border-radius:2px;outline:none;cursor:pointer;
+  background:rgba(255,255,255,.1);border-radius:2px;outline:none;cursor:pointer;
 }
 #explode-slider::-webkit-slider-thumb{
   -webkit-appearance:none;width:15px;height:15px;
@@ -197,84 +169,111 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   box-shadow:0 0 6px rgba(75,163,195,.5);
 }
 #xpct{font-size:10px;color:var(--accent);font-weight:600;min-width:2.5rem;text-align:right}
-
-/* component buttons */
-.comp-btns-wrap{display:flex;gap:.35rem;flex-wrap:wrap}
+.comp-btns-wrap{display:flex;gap:.32rem;flex-wrap:wrap}
 .cbtn{
-  padding:.3rem .65rem;border-radius:16px;
-  border:1px solid rgba(255,255,255,.15);
-  background:rgba(255,255,255,.05);
-  color:rgba(255,255,255,.6);
-  font-size:10px;font-family:var(--sans);
-  cursor:pointer;transition:all .15s;
-  line-height:1.3;
+  padding:.28rem .62rem;border-radius:16px;border:1px solid rgba(255,255,255,.13);
+  background:rgba(255,255,255,.04);color:rgba(255,255,255,.58);
+  font-size:10px;font-family:var(--sans);cursor:pointer;transition:all .15s;
 }
-.cbtn.on{
-  background:rgba(75,163,195,.2);
-  border-color:rgba(75,163,195,.5);
-  color:rgba(255,255,255,.92);
-}
-.cbtn:not(.on){
-  background:rgba(255,255,255,.02);
-  border-color:rgba(255,255,255,.07);
-  color:rgba(255,255,255,.25);
-  text-decoration:line-through;
-}
-.cbtn:hover{border-color:rgba(75,163,195,.4)}
-
-/* quick-action buttons */
-.qbtns{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.4rem}
+.cbtn.on{background:rgba(75,163,195,.18);border-color:rgba(75,163,195,.45);color:rgba(255,255,255,.9)}
+.cbtn:not(.on){background:rgba(255,255,255,.02);border-color:rgba(255,255,255,.07);
+  color:rgba(255,255,255,.22);text-decoration:line-through}
+.qbtns{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.38rem}
 .qbtn{
-  padding:.28rem .65rem;border-radius:14px;
-  border:1px solid rgba(255,255,255,.1);
-  background:rgba(255,255,255,.04);
-  color:rgba(255,255,255,.5);
-  font-size:9px;font-family:var(--sans);cursor:pointer;
-  transition:all .15s;
+  padding:.25rem .6rem;border-radius:13px;border:1px solid rgba(255,255,255,.09);
+  background:rgba(255,255,255,.03);color:rgba(255,255,255,.42);
+  font-size:9px;font-family:var(--sans);cursor:pointer;transition:all .15s;
 }
 .qbtn:hover{border-color:var(--accent);color:var(--accent)}
 
-/* ─── INFO PANEL (click-to-inspect) ─── */
-#info-panel{
-  position:absolute;bottom:0;left:0;right:0;
-  background:var(--panel);
-  backdrop-filter:blur(14px);
-  border-top:1px solid var(--border);
-  padding:.85rem 1rem 1rem;
-  transform:translateY(100%);
-  transition:transform .3s cubic-bezier(.16,1,.3,1);
-  z-index:20;
-  max-height:55%;overflow-y:auto;
+/* ─── AR VIEWER ─────────────────────────────────────────── */
+#ar-view{position:fixed;inset:0;z-index:500;background:#000;display:none}
+#ar-view.on{display:block}
+/* AR.js injects video — position it to fill screen */
+#ar-view video{
+  position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;
+  object-fit:cover!important;z-index:0!important;
 }
-#info-panel.show{transform:translateY(0)}
-#info-panel h3{
-  font-family:var(--serif);font-size:13px;
-  color:var(--gold);font-weight:normal;
-  margin-bottom:.35rem;
+#ar-canvas{
+  position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;
+  z-index:1;background:transparent!important;pointer-events:none;
 }
-#info-panel .ip-desc{
-  font-size:11px;color:rgba(255,255,255,.62);
-  line-height:1.65;margin-bottom:.6rem;
+#ar-ui{position:absolute;inset:0;z-index:10;pointer-events:none}
+#ar-header{
+  position:absolute;top:0;left:0;right:0;pointer-events:all;
+  padding:.85rem 1rem .7rem;
+  background:linear-gradient(to bottom,rgba(0,16,40,.88) 0%,transparent 100%);
 }
-.spec-row{
-  display:flex;justify-content:space-between;align-items:baseline;
-  padding:.2rem 0;border-bottom:1px solid rgba(255,255,255,.06);
-  font-size:10.5px;
+#ar-header h1{font-family:var(--serif);font-size:14px;color:#fff;font-weight:normal}
+#ar-header p{font-size:11px;color:var(--accent);margin-top:2px}
+#ar-back{
+  position:absolute;top:.85rem;right:1rem;pointer-events:all;
+  background:rgba(0,16,40,.85);border:1px solid rgba(75,163,195,.4);
+  border-radius:9px;color:var(--accent);padding:.42rem .85rem;
+  font-size:11.5px;font-family:var(--sans);cursor:pointer;backdrop-filter:blur(8px);
 }
-.spec-row:last-child{border-bottom:none}
-.sk{color:rgba(255,255,255,.35)}.sv{color:var(--accent);font-weight:600}
-#info-close{
-  float:right;background:none;border:none;
-  color:rgba(255,255,255,.3);cursor:pointer;font-size:16px;margin-top:-2px;
-  padding:0 0 0 .5rem;
+#scan-hint{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);text-align:center;
+  transition:opacity .4s ease;
 }
-
-/* ─── FADE IN ANIMS ─── */
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-.f1{animation:fadeUp .5s ease forwards}
-.f2{animation:fadeUp .5s .12s ease both}
-.f3{animation:fadeUp .5s .25s ease both}
-.f4{animation:fadeUp .5s .38s ease both}
+#scan-hint.hidden{opacity:0;pointer-events:none}
+.scan-frame{
+  width:160px;height:160px;border:1.5px solid rgba(75,163,195,.4);
+  border-radius:12px;margin:0 auto .75rem;position:relative;
+  animation:scanPulse 2s ease-in-out infinite;
+}
+@keyframes scanPulse{0%,100%{border-color:rgba(75,163,195,.25)}50%{border-color:rgba(75,163,195,.85)}}
+.sc{position:absolute;width:16px;height:16px;border-color:var(--accent);border-style:solid}
+.sc.tl{top:-2px;left:-2px;border-width:2.5px 0 0 2.5px;border-radius:3px 0 0 0}
+.sc.tr{top:-2px;right:-2px;border-width:2.5px 2.5px 0 0;border-radius:0 3px 0 0}
+.sc.bl{bottom:-2px;left:-2px;border-width:0 0 2.5px 2.5px;border-radius:0 0 0 3px}
+.sc.br{bottom:-2px;right:-2px;border-width:0 2.5px 2.5px 0;border-radius:0 0 3px 0}
+#scan-hint p{font-size:12px;color:rgba(255,255,255,.65)}
+#scan-hint small{font-size:10px;color:var(--accent);display:block;margin-top:3px}
+#ar-status{
+  position:absolute;top:3.6rem;left:50%;transform:translateX(-50%);
+  background:rgba(68,204,136,.15);border:1px solid rgba(68,204,136,.4);
+  border-radius:20px;padding:.3rem .85rem;font-size:11px;color:#44cc88;
+  opacity:0;transition:opacity .3s ease;pointer-events:none;white-space:nowrap;
+}
+#ar-status.show{opacity:1}
+#ar-card{
+  position:absolute;bottom:0;left:0;right:0;pointer-events:all;
+  background:var(--panel);backdrop-filter:blur(14px);border-top:1px solid var(--border);
+  padding:.9rem 1rem 1.4rem;transform:translateY(100%);
+  transition:transform .35s cubic-bezier(.16,1,.3,1);z-index:20;
+}
+#ar-card.show{transform:translateY(0)}
+#ar-card h3{font-family:var(--serif);font-size:14px;color:var(--gold);font-weight:normal;margin-bottom:.3rem}
+#ar-card .ar-desc{font-size:11px;color:rgba(255,255,255,.6);line-height:1.65;margin-bottom:.6rem}
+.ar-specs{display:flex;flex-wrap:wrap;gap:.5rem 1.2rem}
+.ar-stat .sk{display:block;font-size:9px;color:rgba(255,255,255,.3);
+  letter-spacing:.05em;text-transform:uppercase}
+.ar-stat .sv{display:block;font-size:12px;color:var(--accent);font-weight:600}
+#ar-card-close{float:right;background:none;border:none;color:rgba(255,255,255,.28);
+  cursor:pointer;font-size:16px;padding:0 0 0 .5rem}
+#ar-ctrls{
+  position:absolute;bottom:0;left:0;right:0;pointer-events:all;
+  padding:.6rem .9rem 1.8rem;
+  background:linear-gradient(to top,rgba(0,0,0,.75) 0%,transparent 100%);
+  display:flex;gap:.4rem;
+}
+#ar-card.show ~ #ar-ctrls{display:none}
+.ar-btn{
+  flex:1;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);
+  border-radius:10px;color:#fff;padding:.45rem .4rem;font-size:10px;
+  font-family:var(--sans);cursor:pointer;transition:all .15s;
+  backdrop-filter:blur(8px);text-align:center;line-height:1.3;
+}
+.ar-btn .ci{display:block;font-size:1rem;margin-bottom:1px}
+.ar-btn:active,.ar-btn.on{background:rgba(75,163,195,.28);border-color:var(--accent)}
+#cam-err{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;padding:1.5rem;max-width:280px;z-index:30;display:none;
+}
+#cam-err p{font-size:12px;color:rgba(255,200,200,.8);line-height:1.7}
 </style>
 </head>
 <body>
@@ -282,20 +281,25 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 <!-- LOADING -->
 <div id="loading-screen">
   <div class="ring"></div>
-  <p>Operando PEFC · 3D Visualiser</p>
+  <p>Operando PEFC · Visualiser</p>
 </div>
 
 <!-- LANDING -->
-<div id="landing" style="display:none">
+<div id="landing">
   <p class="wordmark f1">University College London · Department of Chemistry</p>
-  <h1 class="hero-title f2">Operando PEFC<br>3D Visualiser</h1>
-  <p class="hero-sub f2">Explore the neutron-transparent fuel cell in 3D.<br>Rotate, explode components, and toggle individual parts.</p>
+  <h1 class="hero-title f2">Operando PEFC<br>Visualiser</h1>
+  <p class="hero-sub f2">Explore the neutron-transparent fuel cell in 3D<br>or visualise it live with your camera.</p>
 
-  <div class="model-grid f3">
+  <div class="mode-tabs f3">
+    <button class="mode-tab on" id="tab-3d" onclick="setMode('3d')">🔬 3D Viewer</button>
+    <button class="mode-tab"   id="tab-ar" onclick="setMode('ar')">📷 AR Camera</button>
+  </div>
+
+  <div class="model-grid f4" id="model-grid-3d">
     <button class="model-btn on" onclick="selectModel(this,'explosion')" data-m="explosion">
       <span class="icon">💥</span>
       <span class="lbl">Exploded View</span>
-      <span class="desc">All components separated &amp; labelled</span>
+      <span class="desc">All components separated</span>
     </button>
     <button class="model-btn" onclick="selectModel(this,'complete')" data-m="complete">
       <span class="icon">⚙️</span>
@@ -304,8 +308,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
     </button>
   </div>
 
-  <button class="launch-btn f4" onclick="launch()">Open 3D Viewer</button>
+  <div id="ar-note" class="f4">
+    📍 Point your camera at the <strong>Hiro marker</strong> on the poster.<br>
+    The PEFC model will appear anchored to the marker.<br>
+    Allow camera access when prompted.
+  </div>
 
+  <button class="launch-btn f5" id="launch-btn" onclick="launch()">Open 3D Viewer</button>
   <p class="info-foot">Morris, Jervis &amp; Foglia · Gordon Conference on Neutron Scattering 2025</p>
 </div>
 
@@ -313,52 +322,45 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 <div id="viewer">
   <div id="viewer-header">
     <h2 id="v-title">PEFC Assembly</h2>
-    <div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0">
-      <button class="hbtn" id="reset-btn" onclick="resetView()">↺ Reset</button>
+    <div class="hbtns">
+      <button class="hbtn" onclick="resetView()">↺ Reset</button>
       <button class="hbtn" onclick="goBack()">← Back</button>
     </div>
   </div>
-
   <div id="canvas-wrap">
     <canvas id="viewer-canvas"></canvas>
     <div id="vload"><div class="ring"></div><p id="vload-txt">Loading model…</p></div>
     <div id="verr"><p id="verr-txt"></p></div>
+    <div id="info-panel">
+      <button id="info-close" onclick="closeInfo()">✕</button>
+      <h3 id="ip-title"></h3>
+      <p class="ip-desc" id="ip-desc"></p>
+      <div id="ip-specs"></div>
+    </div>
   </div>
-
-  <!-- Info panel slides up from bottom of canvas-wrap -->
-  <div id="info-panel">
-    <button id="info-close" onclick="closeInfo()">✕</button>
-    <h3 id="ip-title"></h3>
-    <p class="ip-desc" id="ip-desc"></p>
-    <div id="ip-specs"></div>
-  </div>
-
   <div id="viewer-footer">
-    <!-- Explode slider -->
     <div class="ctrl-section">
       <span class="ctrl-label">Explode View</span>
       <div class="slider-row">
         <span class="slbl">0%</span>
         <input type="range" id="explode-slider" min="0" max="100" value="0" step="1"
                oninput="setExplode(this.value/100)">
-        <span id="xpct" class="slbl">0%</span>
+        <span id="xpct">0%</span>
       </div>
     </div>
-
-    <!-- Component toggles -->
     <div class="ctrl-section">
       <span class="ctrl-label">Toggle Components</span>
-      <div class="comp-btns-wrap" id="comp-btns">
-        <button class="cbtn on" data-comp="anode"           onclick="toggleComp(this)">🔵 Anode Plate</button>
-        <button class="cbtn on" data-comp="cathode"         onclick="toggleComp(this)">🔴 Cathode Plate</button>
-        <button class="cbtn on" data-comp="mea"             onclick="toggleComp(this)">🟡 MEA</button>
-        <button class="cbtn on" data-comp="ptfe_gaskets"    onclick="toggleComp(this)">⬜ PTFE Gaskets</button>
-        <button class="cbtn on" data-comp="ptfe_bushings"   onclick="toggleComp(this)">⬛ PTFE Bushings</button>
-        <button class="cbtn on" data-comp="fasteners"       onclick="toggleComp(this)">🔩 Fasteners</button>
-        <button class="cbtn on" data-comp="swagelok_anode"  onclick="toggleComp(this)">🟢 Swagelok Anode</button>
-        <button class="cbtn on" data-comp="swagelok_cathode"onclick="toggleComp(this)">🟠 Swagelok Cathode</button>
-        <button class="cbtn on" data-comp="anode_puck"      onclick="toggleComp(this)">◽ Anode Puck</button>
-        <button class="cbtn on" data-comp="cathode_puck"    onclick="toggleComp(this)">◾ Cathode Puck</button>
+      <div class="comp-btns-wrap">
+        <button class="cbtn on" data-comp="anode"            onclick="toggleComp(this)">🔵 Anode Plate</button>
+        <button class="cbtn on" data-comp="cathode"          onclick="toggleComp(this)">🔴 Cathode Plate</button>
+        <button class="cbtn on" data-comp="mea"              onclick="toggleComp(this)">🟡 MEA</button>
+        <button class="cbtn on" data-comp="ptfe_gaskets"     onclick="toggleComp(this)">⬜ PTFE Gaskets</button>
+        <button class="cbtn on" data-comp="ptfe_bushings"    onclick="toggleComp(this)">⬛ PTFE Bushings</button>
+        <button class="cbtn on" data-comp="fasteners"        onclick="toggleComp(this)">🔩 Fasteners</button>
+        <button class="cbtn on" data-comp="swagelok_anode"   onclick="toggleComp(this)">🟢 Swagelok Anode</button>
+        <button class="cbtn on" data-comp="swagelok_cathode" onclick="toggleComp(this)">🟠 Swagelok Cathode</button>
+        <button class="cbtn on" data-comp="anode_puck"       onclick="toggleComp(this)">◽ Anode Puck</button>
+        <button class="cbtn on" data-comp="cathode_puck"     onclick="toggleComp(this)">◾ Cathode Puck</button>
       </div>
       <div class="qbtns">
         <button class="qbtn" onclick="showAll()">Show All</button>
@@ -371,6 +373,46 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   </div>
 </div>
 
+<!-- AR VIEWER -->
+<div id="ar-view">
+  <canvas id="ar-canvas"></canvas>
+  <div id="cam-err"><p>⚠️ Camera access denied or unavailable.<br>Please allow camera permissions and reload the page.</p></div>
+  <div id="ar-ui">
+    <div id="ar-header">
+      <h1>Operando PEFC</h1>
+      <p id="ar-sub">Point camera at the Hiro marker</p>
+    </div>
+    <button id="ar-back" onclick="goBackFromAR()">← Back</button>
+    <div id="ar-status">✓ Marker detected</div>
+    <div id="scan-hint">
+      <div class="scan-frame">
+        <div class="sc tl"></div><div class="sc tr"></div>
+        <div class="sc bl"></div><div class="sc br"></div>
+      </div>
+      <p>Point at the Hiro marker</p>
+      <small>Model will appear on the marker</small>
+    </div>
+    <!-- Info card slides up from bottom -->
+    <div id="ar-card">
+      <button id="ar-card-close" onclick="document.getElementById('ar-card').classList.remove('show')">✕</button>
+      <h3 id="ar-card-title">Full Cell Assembly</h3>
+      <p class="ar-desc" id="ar-card-desc">Complete MEA stack with Al current collector plates. Active area 10×10 mm. 1 mm Al neutron-transparent window. Swagelok fittings in QENS orientation.</p>
+      <div class="ar-specs" id="ar-card-specs">
+        <span class="ar-stat"><span class="sk">Technique</span><span class="sv">SANS + SAXS</span></span>
+        <span class="ar-stat"><span class="sk">Active area</span><span class="sv">10×10 mm</span></span>
+        <span class="ar-stat"><span class="sk">Gas inlets</span><span class="sv">4× Swagelok ¼″</span></span>
+        <span class="ar-stat"><span class="sk">Fasteners</span><span class="sv">8× M4 + PTFE</span></span>
+      </div>
+    </div>
+    <div id="ar-ctrls">
+      <button class="ar-btn" id="ar-xpl-btn" onclick="toggleARExplode()"><span class="ci">💥</span>Explode</button>
+      <button class="ar-btn" onclick="showARInfo()"><span class="ci">ℹ️</span>Info</button>
+      <button class="ar-btn" onclick="resetARView()"><span class="ci">↺</span>Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- importmap for Three.js ESM modules (3D viewer) -->
 <script type="importmap">
 {
   "imports": {
@@ -384,472 +426,598 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 'use strict';
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 //  CONFIG
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 const MODELS_PATH = './models/';
+
 const CFG = {
-  explosion: { name:'Exploded View',      file:'pefc-explosion.glb' },
-  complete:  { name:'Complete Assembly',   file:'pefc-complete.glb'  },
+  explosion: { name: 'Exploded View',     file: 'pefc-explosion.glb' },
+  complete:  { name: 'Complete Assembly', file: 'pefc-complete.glb'  },
 };
 
-// Maps each UI comp key → substring patterns that match GLB node names
-// Uses includes() so partial matches work for any casing / suffix variants
+// ── ORIENTATION ─────────────────────────────────────────
+// Fusion 360 is Z-up. Three.js is Y-up.
+// Applying Rx = -PI/2 maps Fusion's Z → Three's Y.
+// Result: Swageloks on top (+Y), beam axis along Z. ✓ QENS convention.
+// No Ry rotation so the cell faces the viewer along -Z (natural camera view).
+const MODEL_RX = -Math.PI / 2;
+const MODEL_RY = 0;
+const MODEL_RZ = 0;
+
+// ── COMPONENT NODE MAPPING ──────────────────────────────
+// Each key maps to substrings tested against GLB node names (case-sensitive, partial match)
 const COMP_NODES = {
   anode:            ['Anode'],
-  cathode:          ['Catode','Cathode'],
+  cathode:          ['Catode', 'Cathode'],
   mea:              ['MEA'],
-  ptfe_gaskets:     ['PTFE Gaskets','Gasket'],
-  ptfe_bushings:    ['Brushing','Bushing','Bush'],
-  fasteners:        ['Fastener','Bolt','Screw'],
-  swagelok_anode:   ['Swagelock Male Anode','Swagelok Male Anode','Swagelock Anode','Swagelok Anode'],
-  swagelok_cathode: ['Swagelock Cathode','Swagelok Cathode'],
-  anode_puck:       ['Anode Sealing Puck','Anode Seal Puck','Anode Puck'],
-  cathode_puck:     ['Cathode Sealing Puck','Cathode Seal Puck','Cathode Puck'],
+  ptfe_gaskets:     ['PTFE Gaskets', 'Gasket'],
+  ptfe_bushings:    ['Brushing', 'Bushing', 'Bush'],
+  fasteners:        ['Fastener', 'Bolt', 'Screw'],
+  swagelok_anode:   ['Swagelock Male Anode', 'Swagelok Male Anode', 'Swagelock Anode', 'Swagelok Anode'],
+  swagelok_cathode: ['Swagelock Cathode', 'Swagelok Cathode'],
+  anode_puck:       ['Anode Sealing Puck', 'Anode Seal Puck', 'Anode Puck'],
+  cathode_puck:     ['Cathode Sealing Puck', 'Cathode Seal Puck', 'Cathode Puck'],
 };
 
 const COMP_INFO = {
-  anode:            {title:'Anode Plate',desc:'Aluminium 6061 current collector with serpentine flow field. 1 mm neutron-transparent window region.',specs:[['Material','Al 6061'],['Window','1 mm Al'],['Function','Current collection + gas distribution']]},
-  cathode:          {title:'Cathode Plate',desc:'Mirror of anode plate. SAXS sealing puck sits on outer face enabling simultaneous X-ray measurement.',specs:[['Material','Al 6061'],['Feature','SAXS sealing puck face'],['Function','Current collection + gas distribution']]},
-  mea:              {title:'Membrane Electrode Assembly',desc:'Three-layer MEA: anode GDL / Nafion 117 PEM / cathode GDL. Principal SANS, SAXS and QENS target.',specs:[['Membrane','Nafion 117, 183 μm'],['EW','1100 g/eq'],['Ionomer peak','~0.15 Å⁻¹']]},
-  ptfe_gaskets:     {title:'PTFE Gaskets',desc:'PTFE sheet gaskets provide uniform compression and electrical isolation between Al plates and the MEA.',specs:[['Material','PTFE'],['Thickness','~0.3 mm'],['Function','Seal + electrical isolation']]},
-  ptfe_bushings:    {title:'PTFE Bolt Bushings',desc:'PTFE bushings insulate the M4 stainless steel fasteners from the aluminium plates, preventing electrical short-circuit.',specs:[['Material','PTFE'],['Count','8'],['Function','Electrical isolation of fasteners']]},
-  fasteners:        {title:'M4 Fasteners',desc:'18-8 stainless steel socket head cap screws provide uniform clamping force. PTFE bushings prevent contact with Al plates.',specs:[['Material','18-8 SS'],['Thread','M4'],['Count','8']]},
-  swagelok_anode:   {title:'Swagelok — Anode',desc:'SS-400-1/4 Swagelok connectors deliver humidified H₂ to the anode flow field inlet and outlet.',specs:[['Part','SS-400-1/4'],['Fluid','Humidified H₂'],['Count','2']]},
-  swagelok_cathode: {title:'Swagelok — Cathode',desc:'SS-400-1/4 Swagelok connectors deliver humidified O₂/air to the cathode flow field.',specs:[['Part','SS-400-1/4'],['Fluid','Humidified O₂/air'],['Count','2']]},
-  anode_puck:       {title:'Anode Sealing Puck',desc:'Acrylic sealing puck on the outer anode face. Provides a flat optical window for X-ray beam entry.',specs:[['Material','Acrylic / PMMA'],['Function','Beam window + sealing']]},
-  cathode_puck:     {title:'Cathode Sealing Puck',desc:'Matched sealing puck on cathode outer face. Together with the anode puck, defines the transmission path.',specs:[['Material','Acrylic / PMMA'],['Function','Beam window + sealing']]},
+  anode:            { title: 'Anode Plate',           desc: 'Aluminium 6061 current collector with serpentine flow field. 1 mm neutron-transparent window region.',                                    specs: [['Material','Al 6061'],['Window','1 mm Al'],['Function','Current collection + gas distribution']] },
+  cathode:          { title: 'Cathode Plate',          desc: 'Mirror of anode plate. SAXS sealing puck on outer face enables simultaneous X-ray measurement.',                                        specs: [['Material','Al 6061'],['Feature','SAXS sealing puck face'],['Function','Current collection + gas distribution']] },
+  mea:              { title: 'MEA',                    desc: 'Three-layer MEA: anode GDL / Nafion 117 PEM / cathode GDL. Principal SANS, SAXS and QENS target.',                                      specs: [['Membrane','Nafion 117, 183 μm'],['EW','1100 g/eq'],['Ionomer peak','~0.15 Å⁻¹']] },
+  ptfe_gaskets:     { title: 'PTFE Gaskets',           desc: 'PTFE sheet gaskets provide uniform compression and electrical isolation between Al plates and the MEA.',                                  specs: [['Material','PTFE'],['Thickness','~0.3 mm'],['Function','Seal + electrical isolation']] },
+  ptfe_bushings:    { title: 'PTFE Bolt Bushings',     desc: 'PTFE bushings insulate M4 stainless steel fasteners from the Al plates, preventing electrical short-circuit through the bolts.',         specs: [['Material','PTFE'],['Count','8'],['Function','Electrical isolation of fasteners']] },
+  fasteners:        { title: 'M4 Fasteners',           desc: '18-8 stainless steel socket head cap screws provide uniform clamping force. PTFE bushings prevent contact with Al plates.',             specs: [['Material','18-8 SS'],['Thread','M4'],['Count','8']] },
+  swagelok_anode:   { title: 'Swagelok — Anode',       desc: 'SS-400-1/4 connectors deliver humidified H₂ to the anode flow field inlet and outlet. Mounted on top in QENS orientation.',             specs: [['Part','SS-400-1/4'],['Fluid','Humidified H₂'],['Count','2 (inlet + outlet)']] },
+  swagelok_cathode: { title: 'Swagelok — Cathode',     desc: 'SS-400-1/4 connectors deliver humidified O₂/air to the cathode flow field. Mounted on top in QENS orientation.',                       specs: [['Part','SS-400-1/4'],['Fluid','Humidified O₂/air'],['Count','2 (inlet + outlet)']] },
+  anode_puck:       { title: 'Anode Sealing Puck',     desc: 'Acrylic sealing puck on the outer anode face. Provides a flat optical window for X-ray beam entry on the anode side.',                  specs: [['Material','Acrylic / PMMA'],['Function','Beam window + sealing']] },
+  cathode_puck:     { title: 'Cathode Sealing Puck',   desc: 'Matched sealing puck on cathode outer face. Together with anode puck defines the X-ray/neutron transmission path through the cell.',    specs: [['Material','Acrylic / PMMA'],['Function','Beam window + sealing']] },
 };
 
-// ════════════════════════════════════════════════════════
-//  STATE
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════════════════════════
+let appMode      = '3d';
 let currentModel = 'explosion';
-let renderer, scene, camera, controls, animId;
-let glbRoot = null;           // the loaded gltf.scene object
-let topLevelGroups = {};      // compKey → [THREE.Object3D, ...] (top-level nodes matching that comp)
-let compVisibility = {};      // compKey → boolean
-let explodeParts = [];        // [{mesh, origin:Vector3, dir:Vector3}] — for explosion
-let xFac = 0, xTgt = 0;      // current and target explode factor
-let raycaster, mouse;
-let isAnimating = false;
 
-// ════════════════════════════════════════════════════════
+// ── 3D viewer ────────────────────────────────────────────
+let R3, S3, C3, ctrl3, animId3, isRunning3 = false;
+let glbRoot3 = null, topGroups3 = {}, compVis3 = {};
+let xparts3 = [], xFac3 = 0, xTgt3 = 0;
+let ray3, mouse3;
+
+// ── AR ───────────────────────────────────────────────────
+let arRenderer, arScene, arCamera;
+let arToolkitSource, arToolkitContext, arMarkerControls, arMarkerRoot;
+let arModelGroup, arGlbRoot, arXparts = [], arXF = 0, arXT = 0;
+let arAnimId, arRunning = false;
+let markerSeen = false;
+
+// ═══════════════════════════════════════════════════════════
 //  BOOT
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     document.getElementById('loading-screen').classList.add('hidden');
-    const landing = document.getElementById('landing');
-    landing.style.display = 'flex';
-  }, 600);
+    const l = document.getElementById('landing');
+    l.classList.add('visible');
+  }, 500);
 });
 
-// ════════════════════════════════════════════════════════
-//  LANDING
-// ════════════════════════════════════════════════════════
-window.selectModel = function(btn, m) {
+// ═══════════════════════════════════════════════════════════
+//  LANDING CONTROLS
+// ═══════════════════════════════════════════════════════════
+window.setMode = m => {
+  appMode = m;
+  document.getElementById('tab-3d').classList.toggle('on', m === '3d');
+  document.getElementById('tab-ar').classList.toggle('on', m === 'ar');
+  document.getElementById('model-grid-3d').style.display = m === '3d' ? 'grid' : 'none';
+  document.getElementById('ar-note').classList.toggle('show', m === 'ar');
+  document.getElementById('launch-btn').textContent = m === '3d' ? 'Open 3D Viewer' : 'Launch AR Camera';
+};
+
+window.selectModel = (btn, m) => {
   currentModel = m;
   document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
 };
 
-window.launch = function() {
-  document.getElementById('landing').classList.add('hidden');
-  startViewer();
+window.launch = () => {
+  const l = document.getElementById('landing');
+  l.classList.add('hidden');
+  appMode === 'ar' ? startAR() : startViewer3();
 };
 
-window.goBack = function() {
-  if (animId) { cancelAnimationFrame(animId); animId = null; isAnimating = false; }
-  if (renderer) { renderer.dispose(); renderer = null; }
-  if (controls) { controls.dispose(); controls = null; }
-  glbRoot = null; topLevelGroups = {}; explodeParts = [];
-  xFac = 0; xTgt = 0;
-  document.getElementById('viewer').classList.remove('on');
-  document.getElementById('explode-slider').value = 0;
-  document.getElementById('xpct').textContent = '0%';
-  document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
-  closeInfo();
-  const landing = document.getElementById('landing');
-  landing.style.display = 'flex';
-  landing.classList.remove('hidden');
-};
+window.goBack = () => { stopViewer3(); showLanding(); };
+window.goBackFromAR = () => { stopAR(); showLanding(); };
 
-// ════════════════════════════════════════════════════════
-//  3D VIEWER
-// ════════════════════════════════════════════════════════
-function startViewer() {
-  const viewer = document.getElementById('viewer');
-  viewer.classList.add('on');
-  document.getElementById('v-title').textContent = CFG[currentModel].name;
-  document.getElementById('vload').classList.remove('hidden');
-  document.getElementById('verr').style.display = 'none';
-
-  const canvas = document.getElementById('viewer-canvas');
-  const wrap = document.getElementById('canvas-wrap');
-  const W = wrap.offsetWidth || window.innerWidth;
-  const H = wrap.offsetHeight || (window.innerHeight - 160);
-
-  // Renderer
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setSize(W, H);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.25;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-  // Scene
-  scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x000810, 0.025);
-
-  // Camera
-  camera = new THREE.PerspectiveCamera(42, W / H, 0.01, 2000);
-  camera.position.set(0, 8, 22);
-
-  // Lights
-  scene.add(new THREE.AmbientLight(0x3a5a80, 1.2));
-  const sun = new THREE.DirectionalLight(0xfff4e0, 2.0);
-  sun.position.set(15, 25, 12);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 0.5;
-  sun.shadow.camera.far = 200;
-  sun.shadow.camera.left = sun.shadow.camera.bottom = -30;
-  sun.shadow.camera.right = sun.shadow.camera.top = 30;
-  scene.add(sun);
-  const fill = new THREE.PointLight(0x4ba3c3, 1.6, 150);
-  fill.position.set(-18, 6, 10);
-  scene.add(fill);
-  const rim = new THREE.PointLight(0xc8a951, 0.8, 100);
-  rim.position.set(0, -12, -18);
-  scene.add(rim);
-
-  // Ground grid
-  const grid = new THREE.GridHelper(80, 80, 0x0f2040, 0x071220);
-  grid.position.y = -10;
-  scene.add(grid);
-
-  // Orbit controls
-  controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.06;
-  controls.minDistance = 2;
-  controls.maxDistance = 80;
-  controls.maxPolarAngle = Math.PI * 0.85;
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.6;
-
-  // Raycaster
-  raycaster = new THREE.Raycaster();
-  mouse = new THREE.Vector2();
-
-  // Click to inspect
-  canvas.addEventListener('click', onCanvasClick);
-
-  // Stop auto-rotate on user interaction
-  controls.addEventListener('start', () => { controls.autoRotate = false; });
-
-  // Resize
-  window.addEventListener('resize', onResize);
-
-  // Load model
-  loadGLB(currentModel);
-
-  // Animation loop
-  isAnimating = true;
-  animate();
+function showLanding() {
+  const l = document.getElementById('landing');
+  l.classList.add('visible');
+  l.classList.remove('hidden');
 }
 
-function animate() {
-  if (!isAnimating) return;
-  animId = requestAnimationFrame(animate);
-
-  // Smooth explode
-  if (Math.abs(xFac - xTgt) > 0.0005) {
-    xFac += (xTgt - xFac) * 0.08;
-    applyExplode();
-  }
-
-  controls && controls.update();
-  renderer && scene && camera && renderer.render(scene, camera);
-}
-
-function onResize() {
-  if (!renderer || !camera) return;
-  const wrap = document.getElementById('canvas-wrap');
-  const W = wrap.offsetWidth, H = wrap.offsetHeight;
-  if (!W || !H) return;
-  renderer.setSize(W, H);
-  camera.aspect = W / H;
-  camera.updateProjectionMatrix();
-}
-
-// ════════════════════════════════════════════════════════
-//  GLB LOADING
-// ════════════════════════════════════════════════════════
-function loadGLB(key) {
-  // Clean up previous model
-  if (glbRoot) { scene.remove(glbRoot); glbRoot = null; }
-  topLevelGroups = {};
-  explodeParts = [];
-  xFac = 0; xTgt = 0;
-  document.getElementById('explode-slider').value = 0;
-  document.getElementById('xpct').textContent = '0%';
-  compVisibility = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, true]));
-  document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
-
-  const loader = new GLTFLoader();
-  const url = MODELS_PATH + CFG[key].file;
-
-  loader.load(
-    url,
-    gltf => onGLBLoaded(gltf, key),
-    xhr => {
-      const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : 0;
-      document.getElementById('vload-txt').textContent = `Loading… ${pct}%`;
-    },
-    err => {
-      console.error('GLB load error:', err);
-      showError(`Could not load model file.\n(${CFG[key].file})\n\nEnsure the file is in the /models/ folder.`);
-    }
-  );
-}
-
-function onGLBLoaded(gltf, key) {
-  const model = gltf.scene;
-
-  // ── Normalise size and centre ──────────────────────────
-  const box = new THREE.Box3().setFromObject(model);
+// ═══════════════════════════════════════════════════════════
+//  SHARED HELPERS
+// ═══════════════════════════════════════════════════════════
+function normaliseModel(model, targetSize) {
+  const box  = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  const sc = 12 / maxDim;
+  const sc   = targetSize / Math.max(size.x, size.y, size.z, 0.001);
   model.scale.setScalar(sc);
-
-  // Re-calc box after scale
   const box2 = new THREE.Box3().setFromObject(model);
-  const centre = box2.getCenter(new THREE.Vector3());
-  model.position.sub(centre);
+  model.position.sub(box2.getCenter(new THREE.Vector3()));
+  // ── QENS orientation ──────────────────────────────────
+  // Fusion 360 Z-up → Three.js Y-up:  Rx = -PI/2
+  // Swageloks (Fusion +Z) → Three.js +Y (up)  ✓
+  // Beam axis (Fusion +Y) → Three.js -Z (depth into scene) ✓
+  model.rotation.set(MODEL_RX, MODEL_RY, MODEL_RZ);
+}
 
-  // Fusion 360 exports Z-up; rotate to Y-up and face camera
-  model.rotation.set(-Math.PI / 2, Math.PI / 2, 0);
-
-  // ── Material & shadow pass ─────────────────────────────
+function applyMaterials(model) {
   model.traverse(ch => {
     if (!ch.isMesh) return;
     ch.castShadow = ch.receiveShadow = true;
     const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
-    mats.forEach(mat => {
-      if (!mat) return;
-      mat.envMapIntensity = 0.5;
-    });
+    mats.forEach(m => { if (m) m.envMapIntensity = 0.5; });
   });
-
-  // ── Map top-level children to component keys ───────────
-  // Walk the IMMEDIATE children of the scene root and match by name
-  buildTopLevelGroups(model);
-
-  // ── Explode data ───────────────────────────────────────
-  // Compute world-space centroid of each top-level group for direction vector
-  buildExplodeParts(model);
-
-  glbRoot = model;
-  scene.add(model);
-
-  document.getElementById('vload').classList.add('hidden');
-
-  // Auto-position camera
-  const box3 = new THREE.Box3().setFromObject(model);
-  const sz = box3.getSize(new THREE.Vector3());
-  const dist = Math.max(sz.x, sz.y, sz.z) * 1.8;
-  camera.position.set(0, dist * 0.5, dist);
-  camera.lookAt(0, 0, 0);
-  controls.target.set(0, 0, 0);
-  controls.update();
-
-  // Log node names to console to help with COMP_NODES tuning
-  console.log('GLB top-level children:');
-  model.children.forEach(c => console.log(' ', JSON.stringify(c.name), c.type));
-  console.log('Component group mapping:', Object.fromEntries(
-    Object.entries(topLevelGroups).map(([k,arr]) => [k, arr.map(n => n.name)])
-  ));
 }
 
-// Walk every child of the model root (depth-1) and find which comp key it matches
-function buildTopLevelGroups(model) {
-  topLevelGroups = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, []]));
-
-  // Also build an unmapped list so unmatched nodes stay visible
+function buildGroups(model) {
+  const g = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, []]));
   model.children.forEach(node => {
     if (!node.name) return;
-    const nm = node.name;
-    let matched = false;
-    for (const [comp, patterns] of Object.entries(COMP_NODES)) {
-      if (patterns.some(p => nm.includes(p))) {
-        topLevelGroups[comp].push(node);
-        matched = true;
-        break;
-      }
+    for (const [comp, pats] of Object.entries(COMP_NODES)) {
+      if (pats.some(p => node.name.includes(p))) { g[comp].push(node); return; }
     }
-    if (!matched) {
-      console.warn('Unmatched GLB node:', JSON.stringify(nm));
-    }
+    console.warn('Unmatched node:', JSON.stringify(node.name));
   });
+  console.log('Component map:', Object.fromEntries(Object.entries(g).map(([k,v]) => [k, v.map(n => n.name).join(', ') || '(none)'])));
+  return g;
 }
 
-// Builds explode parts from top-level matched groups
-function buildExplodeParts(model) {
-  explodeParts = [];
-  const modelCentre = new THREE.Vector3(); // (0,0,0) after centering
-
-  for (const [comp, nodes] of Object.entries(topLevelGroups)) {
-    if (!nodes.length) continue;
+function buildXplodeParts(model, groups) {
+  const parts = [];
+  for (const nodes of Object.values(groups)) {
     nodes.forEach(node => {
-      // Compute world centroid of this node
       const box = new THREE.Box3().setFromObject(node);
       if (box.isEmpty()) return;
-      const centre = box.getCenter(new THREE.Vector3());
-      const dir = centre.clone().sub(modelCentre).normalize();
-      // Store original local position
-      const origin = node.position.clone();
-      explodeParts.push({ node, origin, dir, comp });
+      const dir = box.getCenter(new THREE.Vector3()).normalize();
+      parts.push({ node, origin: node.position.clone(), dir });
     });
   }
+  return parts;
 }
 
-function applyExplode() {
-  if (!glbRoot) return;
-  const scale = xFac * 4.5; // max spread factor
-  explodeParts.forEach(({ node, origin, dir }) => {
-    node.position.copy(origin).addScaledVector(dir, scale);
-  });
-}
-
-// ════════════════════════════════════════════════════════
-//  COMPONENT VISIBILITY
-// ════════════════════════════════════════════════════════
-function applyCompVisibility() {
-  for (const [comp, nodes] of Object.entries(topLevelGroups)) {
-    const vis = compVisibility[comp] !== false;
-    nodes.forEach(node => { node.visible = vis; });
-  }
-}
-
-window.toggleComp = function(btn) {
-  const comp = btn.dataset.comp;
-  compVisibility[comp] = !compVisibility[comp];
-  btn.classList.toggle('on', compVisibility[comp]);
-  applyCompVisibility();
-  if (compVisibility[comp] && COMP_INFO[comp]) openInfo(COMP_INFO[comp]);
-};
-
-window.showAll = function() {
-  Object.keys(compVisibility).forEach(k => compVisibility[k] = true);
-  document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
-  applyCompVisibility();
-};
-
-window.hideAll = function() {
-  Object.keys(compVisibility).forEach(k => compVisibility[k] = false);
-  document.querySelectorAll('.cbtn').forEach(b => b.classList.remove('on'));
-  applyCompVisibility();
-};
-
-window.isolate = function(comp) {
-  Object.keys(compVisibility).forEach(k => compVisibility[k] = k === comp);
-  document.querySelectorAll('.cbtn').forEach(b => b.classList.toggle('on', b.dataset.comp === comp));
-  applyCompVisibility();
-};
-
-// ════════════════════════════════════════════════════════
-//  EXPLODE SLIDER
-// ════════════════════════════════════════════════════════
-window.setExplode = function(v) {
-  xTgt = v;
-  document.getElementById('xpct').textContent = Math.round(v * 100) + '%';
-};
-
-// ════════════════════════════════════════════════════════
-//  RESET VIEW
-// ════════════════════════════════════════════════════════
-window.resetView = function() {
-  xTgt = 0;
-  document.getElementById('explode-slider').value = 0;
-  document.getElementById('xpct').textContent = '0%';
-  showAll();
-  if (controls) {
-    controls.autoRotate = true;
-    if (glbRoot) {
-      const box = new THREE.Box3().setFromObject(glbRoot);
-      const sz = box.getSize(new THREE.Vector3());
-      const dist = Math.max(sz.x, sz.y, sz.z) * 1.8;
-      camera.position.set(0, dist * 0.5, dist);
-      controls.target.set(0, 0, 0);
-      controls.update();
-    }
-  }
-};
-
-// ════════════════════════════════════════════════════════
-//  CLICK TO INSPECT
-// ════════════════════════════════════════════════════════
-function onCanvasClick(e) {
-  if (!glbRoot || !raycaster) return;
-  const canvas = e.currentTarget;
-  const rect = canvas.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
-
-  const hits = raycaster.intersectObject(glbRoot, true);
-  if (!hits.length) { closeInfo(); return; }
-
-  const hitObj = hits[0].object;
-
-  // Walk up the ancestor chain to find a top-level group that maps to a comp
-  let compKey = null;
-  let cur = hitObj;
-  outer: while (cur && cur !== glbRoot) {
-    for (const [comp, nodes] of Object.entries(topLevelGroups)) {
-      if (nodes.includes(cur)) { compKey = comp; break outer; }
-    }
-    cur = cur.parent;
-  }
-
-  if (compKey && COMP_INFO[compKey]) {
-    openInfo(COMP_INFO[compKey]);
-  }
-}
-
-// ════════════════════════════════════════════════════════
-//  INFO PANEL
-// ════════════════════════════════════════════════════════
 function openInfo(info) {
   document.getElementById('ip-title').textContent = info.title;
-  document.getElementById('ip-desc').textContent = info.desc;
+  document.getElementById('ip-desc').textContent  = info.desc;
   document.getElementById('ip-specs').innerHTML = (info.specs || []).map(s =>
     `<div class="spec-row"><span class="sk">${s[0]}</span><span class="sv">${s[1]}</span></div>`
   ).join('');
   document.getElementById('info-panel').classList.add('show');
 }
+window.closeInfo = () => document.getElementById('info-panel').classList.remove('show');
 
-window.closeInfo = function() {
-  document.getElementById('info-panel').classList.remove('show');
+// ═══════════════════════════════════════════════════════════
+//  3D VIEWER
+// ═══════════════════════════════════════════════════════════
+function startViewer3() {
+  const viewer = document.getElementById('viewer');
+  viewer.classList.add('on');
+  document.getElementById('v-title').textContent  = CFG[currentModel].name;
+  document.getElementById('vload').classList.remove('hidden');
+  document.getElementById('verr').style.display   = 'none';
+
+  const canvas = document.getElementById('viewer-canvas');
+  const wrap   = document.getElementById('canvas-wrap');
+  const W = wrap.offsetWidth || window.innerWidth;
+  const H = wrap.offsetHeight || window.innerHeight - 160;
+
+  // Renderer
+  R3 = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  R3.setPixelRatio(Math.min(devicePixelRatio, 2));
+  R3.setSize(W, H);
+  R3.shadowMap.enabled = true;
+  R3.shadowMap.type    = THREE.PCFSoftShadowMap;
+  R3.toneMapping       = THREE.ACESFilmicToneMapping;
+  R3.toneMappingExposure = 1.25;
+  R3.outputColorSpace  = THREE.SRGBColorSpace;
+
+  // Scene
+  S3  = new THREE.Scene();
+  S3.fog = new THREE.FogExp2(0x000810, 0.022);
+
+  // Camera — looking along -Z; Swageloks will appear at top of screen
+  C3  = new THREE.PerspectiveCamera(42, W / H, 0.01, 2000);
+  C3.position.set(0, 5, 22);
+  C3.lookAt(0, 0, 0);
+
+  // Lights
+  S3.add(new THREE.AmbientLight(0x3a5a80, 1.2));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 2.0);
+  sun.position.set(10, 20, 12); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); S3.add(sun);
+  S3.add(Object.assign(new THREE.PointLight(0x4ba3c3, 1.5, 150), { position: new THREE.Vector3(-18, 6, 10) }));
+  S3.add(Object.assign(new THREE.PointLight(0xc8a951, 0.7, 100), { position: new THREE.Vector3(0, -12, -18) }));
+
+  // Grid — horizontal below model (beam axis Z is perpendicular to grid)
+  const grid = new THREE.GridHelper(80, 80, 0x0f2040, 0x06111e);
+  grid.position.y = -9;
+  S3.add(grid);
+
+  // Orbit controls
+  ctrl3 = new OrbitControls(C3, canvas);
+  ctrl3.enableDamping   = true;
+  ctrl3.dampingFactor   = 0.06;
+  ctrl3.minDistance     = 2;
+  ctrl3.maxDistance     = 80;
+  ctrl3.maxPolarAngle   = Math.PI * 0.85;
+  ctrl3.autoRotate      = true;
+  ctrl3.autoRotateSpeed = 0.5;
+  ctrl3.addEventListener('start', () => { ctrl3.autoRotate = false; });
+
+  // Click to inspect
+  ray3   = new THREE.Raycaster();
+  mouse3 = new THREE.Vector2();
+  canvas.addEventListener('click', onCanvas3Click);
+  window.addEventListener('resize', onResize3);
+
+  // Load
+  xFac3 = 0; xTgt3 = 0;
+  document.getElementById('explode-slider').value = 0;
+  document.getElementById('xpct').textContent = '0%';
+  loadGLB3(currentModel);
+
+  isRunning3 = true;
+  loop3();
+}
+
+function loop3() {
+  if (!isRunning3) return;
+  animId3 = requestAnimationFrame(loop3);
+  if (Math.abs(xFac3 - xTgt3) > 0.0005) { xFac3 += (xTgt3 - xFac3) * 0.08; applyXplode3(); }
+  ctrl3 && ctrl3.update();
+  R3 && S3 && C3 && R3.render(S3, C3);
+}
+
+function onResize3() {
+  if (!R3 || !C3) return;
+  const wrap = document.getElementById('canvas-wrap');
+  const W = wrap.offsetWidth, H = wrap.offsetHeight;
+  if (!W || !H) return;
+  R3.setSize(W, H); C3.aspect = W / H; C3.updateProjectionMatrix();
+}
+
+function loadGLB3(key) {
+  if (glbRoot3) { S3.remove(glbRoot3); glbRoot3 = null; }
+  topGroups3 = {}; xparts3 = []; xFac3 = 0; xTgt3 = 0;
+  compVis3 = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, true]));
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
+
+  new GLTFLoader().load(
+    MODELS_PATH + CFG[key].file,
+    gltf => {
+      const model = gltf.scene;
+      normaliseModel(model, 12);
+      applyMaterials(model);
+      topGroups3 = buildGroups(model);
+      xparts3    = buildXplodeParts(model, topGroups3);
+      glbRoot3   = model;
+      S3.add(model);
+
+      // Auto-frame camera
+      const box  = new THREE.Box3().setFromObject(model);
+      const sz   = box.getSize(new THREE.Vector3());
+      const dist = Math.max(sz.x, sz.y, sz.z) * 1.9;
+      C3.position.set(0, dist * 0.3, dist);
+      C3.lookAt(0, 0, 0);
+      ctrl3.target.set(0, 0, 0);
+      ctrl3.update();
+
+      document.getElementById('vload').classList.add('hidden');
+    },
+    xhr => {
+      const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : 0;
+      document.getElementById('vload-txt').textContent = `Loading… ${pct}%`;
+    },
+    err => {
+      console.error('GLB error:', err);
+      document.getElementById('vload').classList.add('hidden');
+      document.getElementById('verr').style.display = 'block';
+      document.getElementById('verr-txt').textContent =
+        `Could not load:\n${CFG[key].file}\n\nEnsure it is in the /models/ folder.`;
+    }
+  );
+}
+
+function applyXplode3() {
+  xparts3.forEach(({ node, origin, dir }) => {
+    node.position.copy(origin).addScaledVector(dir, xFac3 * 5);
+  });
+}
+
+function applyCompVis3() {
+  for (const [comp, nodes] of Object.entries(topGroups3)) {
+    nodes.forEach(n => { n.visible = compVis3[comp] !== false; });
+  }
+}
+
+function onCanvas3Click(e) {
+  if (!glbRoot3) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  mouse3.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  mouse3.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+  ray3.setFromCamera(mouse3, C3);
+  const hits = ray3.intersectObject(glbRoot3, true);
+  if (!hits.length) { closeInfo(); return; }
+  let compKey = null, cur = hits[0].object;
+  outer: while (cur && cur !== glbRoot3) {
+    for (const [comp, nodes] of Object.entries(topGroups3)) {
+      if (nodes.includes(cur)) { compKey = comp; break outer; }
+    }
+    cur = cur.parent;
+  }
+  if (compKey && COMP_INFO[compKey]) openInfo(COMP_INFO[compKey]);
+}
+
+function stopViewer3() {
+  isRunning3 = false;
+  if (animId3) { cancelAnimationFrame(animId3); animId3 = null; }
+  window.removeEventListener('resize', onResize3);
+  document.getElementById('viewer-canvas').removeEventListener('click', onCanvas3Click);
+  ctrl3 && ctrl3.dispose(); R3 && R3.dispose();
+  R3 = S3 = C3 = ctrl3 = null; glbRoot3 = null; topGroups3 = {}; xparts3 = [];
+  document.getElementById('viewer').classList.remove('on');
+  document.getElementById('explode-slider').value = 0;
+  document.getElementById('xpct').textContent = '0%';
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
+  closeInfo();
+}
+
+// Exposed to HTML
+window.setExplode   = v  => { xTgt3 = v; document.getElementById('xpct').textContent = Math.round(v*100)+'%'; };
+window.resetView    = () => {
+  xTgt3 = 0; document.getElementById('explode-slider').value = 0; document.getElementById('xpct').textContent = '0%';
+  showAll();
+  if (ctrl3 && glbRoot3) {
+    ctrl3.autoRotate = true;
+    const sz = new THREE.Box3().setFromObject(glbRoot3).getSize(new THREE.Vector3());
+    const d  = Math.max(sz.x, sz.y, sz.z) * 1.9;
+    C3.position.set(0, d * 0.3, d); ctrl3.target.set(0,0,0); ctrl3.update();
+  }
+};
+window.toggleComp = btn => {
+  const c = btn.dataset.comp; compVis3[c] = !compVis3[c];
+  btn.classList.toggle('on', compVis3[c]); applyCompVis3();
+  if (compVis3[c] && COMP_INFO[c]) openInfo(COMP_INFO[c]);
+};
+window.showAll = () => {
+  Object.keys(compVis3).forEach(k => compVis3[k] = true);
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on')); applyCompVis3();
+};
+window.hideAll = () => {
+  Object.keys(compVis3).forEach(k => compVis3[k] = false);
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.remove('on')); applyCompVis3();
+};
+window.isolate = comp => {
+  Object.keys(compVis3).forEach(k => compVis3[k] = k === comp);
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.toggle('on', b.dataset.comp === comp));
+  applyCompVis3();
 };
 
-// ════════════════════════════════════════════════════════
-//  ERROR
-// ════════════════════════════════════════════════════════
-function showError(msg) {
-  document.getElementById('vload').classList.add('hidden');
-  const el = document.getElementById('verr');
-  document.getElementById('verr-txt').textContent = msg;
-  el.style.display = 'block';
+// ═══════════════════════════════════════════════════════════
+//  AR VIEWER  ── AR.js Three.js (no A-Frame)
+// ═══════════════════════════════════════════════════════════
+//
+//  Pipeline:
+//   1. THREEx.ArToolkitSource  — manages webcam video element
+//   2. THREEx.ArToolkitContext — runs jsartoolkit5 detection each frame
+//   3. THREEx.ArMarkerControls — writes pose matrix to arMarkerRoot
+//   4. Our Three.js render loop draws arScene on top of the video
+//
+//  The AR.js video element is positioned behind #ar-canvas (z-index:0)
+//  and #ar-canvas has alpha:true so the 3D overlay is composited on top.
+//
+// ─────────────────────────────────────────────────────────
+function startAR() {
+  document.getElementById('ar-view').classList.add('on');
+  document.getElementById('scan-hint').classList.remove('hidden');
+  document.getElementById('ar-status').classList.remove('show');
+  document.getElementById('ar-card').classList.remove('show');
+  document.getElementById('cam-err').style.display = 'none';
+
+  const canvas = document.getElementById('ar-canvas');
+  const W = window.innerWidth, H = window.innerHeight;
+
+  // ── Three.js renderer ───────────────────────────────────
+  arRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, logarithmicDepthBuffer: true });
+  arRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  arRenderer.setSize(W, H);
+  arRenderer.toneMapping       = THREE.ACESFilmicToneMapping;
+  arRenderer.toneMappingExposure = 1.2;
+  arRenderer.outputColorSpace  = THREE.SRGBColorSpace;
+  arRenderer.autoClear         = false; // required: AR.js renders video separately
+
+  arScene  = new THREE.Scene();
+  arCamera = new THREE.Camera();
+  arScene.add(arCamera);
+
+  // Lights for AR scene
+  arScene.add(new THREE.AmbientLight(0xffffff, 1.5));
+  const arSun = new THREE.DirectionalLight(0xfff0e0, 2.2);
+  arSun.position.set(5, 10, 5);
+  arScene.add(arSun);
+  arScene.add(Object.assign(new THREE.PointLight(0x4ba3c3, 1.0, 30), { position: new THREE.Vector3(-3, 4, 3) }));
+
+  // Marker root — AR.js updates this transform each frame
+  arMarkerRoot = new THREE.Group();
+  arScene.add(arMarkerRoot);
+
+  // Model container inside marker root
+  arModelGroup = new THREE.Group();
+  arModelGroup.visible = false;
+  arMarkerRoot.add(arModelGroup);
+
+  // ── AR toolkit source (webcam) ──────────────────────────
+  arToolkitSource = new THREEx.ArToolkitSource({
+    sourceType: 'webcam',
+    // Landscape vs portrait — pick appropriate resolution
+    sourceWidth:  window.innerWidth > window.innerHeight ? 640 : 480,
+    sourceHeight: window.innerWidth > window.innerHeight ? 480 : 640,
+    displayWidth:  window.innerWidth,
+    displayHeight: window.innerHeight,
+  });
+
+  arToolkitSource.init(
+    () => {
+      // Patch injected video for iOS Safari autoplay requirements
+      setTimeout(() => {
+        const vid = document.querySelector('#ar-view video');
+        if (vid) {
+          vid.setAttribute('playsinline', '');
+          vid.setAttribute('webkit-playsinline', '');
+          vid.setAttribute('autoplay', '');
+          vid.muted = true;
+          vid.play().catch(e => console.warn('Video play:', e));
+        }
+        onARResize();
+      }, 100);
+    },
+    err => {
+      console.error('AR camera init error:', err);
+      document.getElementById('cam-err').style.display = 'block';
+    }
+  );
+
+  // ── AR toolkit context ──────────────────────────────────
+  arToolkitContext = new THREEx.ArToolkitContext({
+    cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@2.2.2/data/data/camera_para.dat',
+    detectionMode:       'mono',
+    maxDetectionRate:    60,
+    canvasWidth:         640,
+    canvasHeight:        480,
+  });
+
+  arToolkitContext.init(() => {
+    arCamera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+  });
+
+  // ── Marker controls ─────────────────────────────────────
+  // Uses the standard Hiro marker (print from https://ar-js-org.github.io/AR.js/)
+  arMarkerControls = new THREEx.ArMarkerControls(arToolkitContext, arMarkerRoot, {
+    type:            'preset',
+    preset:          'hiro',
+    smooth:          true,
+    smoothCount:     8,
+    smoothTolerance: 0.01,
+    smoothThreshold: 5,
+  });
+
+  // ── Load GLB ────────────────────────────────────────────
+  loadGLBForAR();
+
+  // ── Resize ──────────────────────────────────────────────
+  window.addEventListener('resize', onARResize);
+
+  // ── Loop ────────────────────────────────────────────────
+  arRunning = true;
+  loopAR();
 }
+
+function loadGLBForAR() {
+  new GLTFLoader().load(
+    MODELS_PATH + CFG['explosion'].file,
+    gltf => {
+      const model = gltf.scene;
+
+      // Scale to ~0.8 AR units (marker is ~10 cm in real world)
+      normaliseModel(model, 0.8);
+      applyMaterials(model);
+
+      // Build explode parts for AR
+      const groups = buildGroups(model);
+      arXparts     = buildXplodeParts(model, groups);
+      arGlbRoot    = model;
+      arModelGroup.add(model);
+    },
+    undefined,
+    err => console.error('AR GLB load error:', err)
+  );
+}
+
+function loopAR() {
+  if (!arRunning) return;
+  arAnimId = requestAnimationFrame(loopAR);
+  if (!arToolkitSource || !arToolkitContext || !arToolkitSource.ready) return;
+
+  // Update AR.js tracking
+  arToolkitContext.update(arToolkitSource.domElement);
+
+  // Infer marker visibility from the marker root's matrix
+  // (AR.js doesn't expose a clean event; we compare world Y position vs ~zero baseline)
+  const det = arMarkerControls && arMarkerRoot.visible;
+  if (det !== markerSeen) { markerSeen = det; onMarkerChanged(det); }
+
+  // Smooth explode
+  if (Math.abs(arXF - arXT) > 0.0005) { arXF += (arXT - arXF) * 0.1; applyARXplode(); }
+
+  arRenderer.clear();
+  arRenderer.render(arScene, arCamera);
+}
+
+function onMarkerChanged(found) {
+  arModelGroup.visible = !!arGlbRoot && found;
+  document.getElementById('scan-hint').classList.toggle('hidden', found);
+  document.getElementById('ar-status').classList.toggle('show', found);
+  if (found) {
+    // Brief delay then show info card
+    setTimeout(() => { if (markerSeen) showARInfo(); }, 900);
+  }
+}
+
+function applyARXplode() {
+  arXparts.forEach(({ node, origin, dir }) => {
+    node.position.copy(origin).addScaledVector(dir, arXF * 0.3);
+  });
+}
+
+function onARResize() {
+  if (!arToolkitSource || !arRenderer) return;
+  arToolkitSource.onResizeElement();
+  arToolkitSource.copyElementSizeTo(arRenderer.domElement);
+  if (arToolkitContext && arToolkitContext.arController) {
+    arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
+  }
+}
+
+function stopAR() {
+  arRunning = false;
+  if (arAnimId) { cancelAnimationFrame(arAnimId); arAnimId = null; }
+  window.removeEventListener('resize', onARResize);
+  if (arRenderer) { arRenderer.dispose(); arRenderer = null; }
+  // Remove video AR.js injected into the DOM
+  document.querySelectorAll('#ar-view video').forEach(v => v.remove());
+  arGlbRoot = arModelGroup = arMarkerRoot = null;
+  arXparts = []; arXF = 0; arXT = 0; markerSeen = false;
+  document.getElementById('ar-view').classList.remove('on');
+  document.getElementById('ar-card').classList.remove('show');
+}
+
+// AR button handlers
+window.toggleARExplode = () => {
+  const on = !document.getElementById('ar-xpl-btn').classList.contains('on');
+  document.getElementById('ar-xpl-btn').classList.toggle('on', on);
+  arXT = on ? 1 : 0;
+};
+window.showARInfo  = () => document.getElementById('ar-card').classList.add('show');
+window.resetARView = () => {
+  arXT = 0;
+  document.getElementById('ar-xpl-btn').classList.remove('on');
+  document.getElementById('ar-card').classList.remove('show');
+};
 
 </script>
 </body>
