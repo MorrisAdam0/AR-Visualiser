@@ -7,8 +7,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Operando PEFC — Visualiser | UCL</title>
 
-<!-- AR.js Three.js standalone (no A-Frame) -->
-<script src="https://cdn.jsdelivr.net/npm/ar.js@2.2.2/three.js/build/ar.js"></script>
 
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -236,7 +234,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   position:absolute;top:3.6rem;left:50%;transform:translateX(-50%);
   background:rgba(68,204,136,.15);border:1px solid rgba(68,204,136,.4);
   border-radius:20px;padding:.3rem .85rem;font-size:11px;color:#44cc88;
-  opacity:0;transition:opacity .3s ease;pointer-events:none;white-space:nowrap;
+  opacity:0;transition:opacity .3s ease;pointer-events:none;white-space:nowrap;z-index: 100;
 }
 #ar-status.show{opacity:1}
 #ar-card{
@@ -309,9 +307,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   </div>
 
   <div id="ar-note" class="f4">
-    📍 Point your camera at the <strong>Hiro marker</strong> on the poster.<br>
-    The PEFC model will appear anchored to the marker.<br>
-    Allow camera access when prompted.
+    📍 Use WebXR native AR.<br>
+    Point your camera at a flat surface and tap to place the cell.<br>
+    Requires a WebXR compatible browser.
   </div>
 
   <button class="launch-btn f5" id="launch-btn" onclick="launch()">Open 3D Viewer</button>
@@ -380,17 +378,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   <div id="ar-ui">
     <div id="ar-header">
       <h1>Operando PEFC</h1>
-      <p id="ar-sub">Point camera at the Hiro marker</p>
+      <p id="ar-sub">Tap START AR below, then tap on a surface to place</p>
     </div>
-    <button id="ar-back" onclick="goBackFromAR()">← Back</button>
-    <div id="ar-status">✓ Marker detected</div>
+    <button id="ar-back" onclick="goBackFromAR()">← Exit</button>
+    <div id="ar-status">✓ Surface detected</div>
     <div id="scan-hint">
       <div class="scan-frame">
         <div class="sc tl"></div><div class="sc tr"></div>
         <div class="sc bl"></div><div class="sc br"></div>
       </div>
-      <p>Point at the Hiro marker</p>
-      <small>Model will appear on the marker</small>
+      <p>Scan your surroundings</p>
+      <small>Look for a flat surface and tap to place</small>
     </div>
     <!-- Info card slides up from bottom -->
     <div id="ar-card">
@@ -428,6 +426,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 import * as THREE from 'three';
 import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { ARButton }      from 'three/addons/webxr/ARButton.js';
 
 // ═══════════════════════════════════════════════════════════
 //  CONFIG
@@ -435,8 +435,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const MODELS_PATH = './models/';
 
 const CFG = {
-  explosion: { name: 'Exploded View',     file: 'pefc-explosion.glb' },
-  complete:  { name: 'Complete Assembly', file: 'pefc-complete.glb'  },
+  explosion: { name: 'Exploded View',     file: 'pefc-exploded.glb' },
+  complete:  { name: 'Complete Assembly', file: 'pefc-exploded.glb'  },
 };
 
 // ── ORIENTATION ─────────────────────────────────────────
@@ -445,22 +445,22 @@ const CFG = {
 // Result: Swageloks on top (+Y), beam axis along Z. ✓ QENS convention.
 // No Ry rotation so the cell faces the viewer along -Z (natural camera view).
 const MODEL_RX = -Math.PI / 2;
-const MODEL_RY = 0;
+const MODEL_RY =  Math.PI / 2;
 const MODEL_RZ = 0;
 
 // ── COMPONENT NODE MAPPING ──────────────────────────────
 // Each key maps to substrings tested against GLB node names (case-sensitive, partial match)
 const COMP_NODES = {
-  anode:            ['Anode'],
-  cathode:          ['Catode', 'Cathode'],
-  mea:              ['MEA'],
-  ptfe_gaskets:     ['PTFE Gaskets', 'Gasket'],
-  ptfe_bushings:    ['Brushing', 'Bushing', 'Bush'],
-  fasteners:        ['Fastener', 'Bolt', 'Screw'],
-  swagelok_anode:   ['Swagelock Male Anode', 'Swagelok Male Anode', 'Swagelock Anode', 'Swagelok Anode'],
-  swagelok_cathode: ['Swagelock Cathode', 'Swagelok Cathode'],
   anode_puck:       ['Anode Sealing Puck', 'Anode Seal Puck', 'Anode Puck'],
   cathode_puck:     ['Cathode Sealing Puck', 'Cathode Seal Puck', 'Cathode Puck'],
+  swagelok_anode:   ['Swagelock Male Anode', 'Swagelok Male Anode', 'Swagelock Anode', 'Swagelok Anode'],
+  swagelok_cathode: ['Swagelock Cathode', 'Swagelok Cathode'],
+  ptfe_bushings:    ['Brushing', 'Bushing', 'Bush'],
+  ptfe_gaskets:     ['PTFE Gaskets', 'Gasket'],
+  mea:              ['MEA'],
+  anode:            ['Anode'],
+  cathode:          ['Catode', 'Cathode'],
+  fasteners:        ['Fastener', 'Bolt', 'Screw'],
 };
 
 const COMP_INFO = {
@@ -489,11 +489,11 @@ let xparts3 = [], xFac3 = 0, xTgt3 = 0;
 let ray3, mouse3;
 
 // ── AR ───────────────────────────────────────────────────
-let arRenderer, arScene, arCamera;
-let arToolkitSource, arToolkitContext, arMarkerControls, arMarkerRoot;
+let arRenderer, arScene, arCamera, arController;
+let hitTestSource = null, hitTestSourceRequested = false;
+let arReticle;
 let arModelGroup, arGlbRoot, arXparts = [], arXF = 0, arXT = 0;
-let arAnimId, arRunning = false;
-let markerSeen = false;
+let arRunning = false, markerSeen = false;
 
 // ═══════════════════════════════════════════════════════════
 //  BOOT
@@ -543,49 +543,64 @@ function showLanding() {
 //  SHARED HELPERS
 // ═══════════════════════════════════════════════════════════
 function normaliseModel(model, targetSize) {
+  // Apply rotation first so the bounding box is computed in the final orientation
+  model.rotation.set(MODEL_RX, MODEL_RY, MODEL_RZ);
   const box  = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const sc   = targetSize / Math.max(size.x, size.y, size.z, 0.001);
   model.scale.setScalar(sc);
   const box2 = new THREE.Box3().setFromObject(model);
   model.position.sub(box2.getCenter(new THREE.Vector3()));
-  // ── QENS orientation ──────────────────────────────────
-  // Fusion 360 Z-up → Three.js Y-up:  Rx = -PI/2
-  // Swageloks (Fusion +Z) → Three.js +Y (up)  ✓
-  // Beam axis (Fusion +Y) → Three.js -Z (depth into scene) ✓
-  model.rotation.set(MODEL_RX, MODEL_RY, MODEL_RZ);
 }
 
 function applyMaterials(model) {
+  const toRemove = [];
   model.traverse(ch => {
+    if (ch.name === 'Cube') { toRemove.push(ch); return; }
     if (!ch.isMesh) return;
     ch.castShadow = ch.receiveShadow = true;
     const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
-    mats.forEach(m => { if (m) m.envMapIntensity = 0.5; });
+    mats.forEach(m => { 
+      if (m) {
+        m.envMapIntensity = 1.0;
+        // Make sure highly transparent parts (like acrylic pucks) are visible
+        if (m.transparent && m.opacity < 0.2) m.opacity = 0.35;
+        if (m.transmission > 0) m.transmission = Math.min(m.transmission, 0.9);
+      }
+    });
   });
+  toRemove.forEach(ch => ch.removeFromParent());
 }
 
 function buildGroups(model) {
   const g = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, []]));
-  model.children.forEach(node => {
-    if (!node.name) return;
+  // BFS: find highest-level node matching each pattern (stops descending once matched)
+  const queue = [...model.children];
+  while (queue.length) {
+    const node = queue.shift();
+    if (!node.name) { if (node.children) queue.push(...node.children); continue; }
+    let matched = false;
     for (const [comp, pats] of Object.entries(COMP_NODES)) {
-      if (pats.some(p => node.name.includes(p))) { g[comp].push(node); return; }
+      if (pats.some(p => node.name.includes(p))) { g[comp].push(node); matched = true; break; }
     }
-    console.warn('Unmatched node:', JSON.stringify(node.name));
-  });
+    if (!matched && node.children) queue.push(...node.children);
+  }
   console.log('Component map:', Object.fromEntries(Object.entries(g).map(([k,v]) => [k, v.map(n => n.name).join(', ') || '(none)'])));
   return g;
 }
 
 function buildXplodeParts(model, groups) {
   const parts = [];
+  model.updateWorldMatrix(true, true);
+  const invMat = new THREE.Matrix4().copy(model.matrixWorld).invert();
   for (const nodes of Object.values(groups)) {
     nodes.forEach(node => {
       const box = new THREE.Box3().setFromObject(node);
       if (box.isEmpty()) return;
-      const dir = box.getCenter(new THREE.Vector3()).normalize();
-      parts.push({ node, origin: node.position.clone(), dir });
+      // Convert world-space centre to model local space so direction is correct after rotation
+      const localCentre = box.getCenter(new THREE.Vector3()).applyMatrix4(invMat);
+      if (localCentre.length() < 1e-5) return;
+      parts.push({ node, origin: node.position.clone(), dir: localCentre.normalize() });
     });
   }
   return parts;
@@ -630,6 +645,10 @@ function startViewer3() {
   S3  = new THREE.Scene();
   S3.fog = new THREE.FogExp2(0x000810, 0.022);
 
+  const pmremGenerator = new THREE.PMREMGenerator(R3);
+  pmremGenerator.compileEquirectangularShader();
+  S3.environment = pmremGenerator.fromScene(new RoomEnvironment()).texture;
+
   // Camera — looking along -Z; Swageloks will appear at top of screen
   C3  = new THREE.PerspectiveCamera(42, W / H, 0.01, 2000);
   C3.position.set(0, 5, 22);
@@ -640,8 +659,8 @@ function startViewer3() {
   const sun = new THREE.DirectionalLight(0xfff4e0, 2.0);
   sun.position.set(10, 20, 12); sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048); S3.add(sun);
-  S3.add(Object.assign(new THREE.PointLight(0x4ba3c3, 1.5, 150), { position: new THREE.Vector3(-18, 6, 10) }));
-  S3.add(Object.assign(new THREE.PointLight(0xc8a951, 0.7, 100), { position: new THREE.Vector3(0, -12, -18) }));
+  const fill = new THREE.PointLight(0x4ba3c3, 1.5, 150); fill.position.set(-18, 6, 10); S3.add(fill);
+  const rim  = new THREE.PointLight(0xc8a951, 0.7, 100); rim.position.set(0, -12, -18);  S3.add(rim);
 
   // Grid — horizontal below model (beam axis Z is perpendicular to grid)
   const grid = new THREE.GridHelper(80, 80, 0x0f2040, 0x06111e);
@@ -697,12 +716,14 @@ function loadGLB3(key) {
   compVis3 = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, true]));
   document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
 
+  const glbUrl = MODELS_PATH + CFG[key].file;
+  console.log('Loading GLB from:', glbUrl);
   new GLTFLoader().load(
-    MODELS_PATH + CFG[key].file,
+    glbUrl,
     gltf => {
       const model = gltf.scene;
-      normaliseModel(model, 12);
       applyMaterials(model);
+      normaliseModel(model, 12);
       topGroups3 = buildGroups(model);
       xparts3    = buildXplodeParts(model, topGroups3);
       glbRoot3   = model;
@@ -711,13 +732,17 @@ function loadGLB3(key) {
       // Auto-frame camera
       const box  = new THREE.Box3().setFromObject(model);
       const sz   = box.getSize(new THREE.Vector3());
-      const dist = Math.max(sz.x, sz.y, sz.z) * 1.9;
-      C3.position.set(0, dist * 0.3, dist);
+      const dist = Math.max(sz.x, sz.y, sz.z) * 1.4;
+      C3.position.set(0, dist * 0.5, dist);
       C3.lookAt(0, 0, 0);
       ctrl3.target.set(0, 0, 0);
       ctrl3.update();
 
-      document.getElementById('vload').classList.add('hidden');
+      // Debug overlay
+      document.getElementById('vload-txt').textContent =
+        `sz=${sz.x.toFixed(1)},${sz.y.toFixed(1)},${sz.z.toFixed(1)} | parts=${xparts3.length} | children=${model.children.length}`;
+      document.getElementById('vload').classList.remove('hidden');
+      setTimeout(()=>document.getElementById('vload').classList.add('hidden'), 4000);
     },
     xhr => {
       const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : 0;
@@ -728,14 +753,14 @@ function loadGLB3(key) {
       document.getElementById('vload').classList.add('hidden');
       document.getElementById('verr').style.display = 'block';
       document.getElementById('verr-txt').textContent =
-        `Could not load:\n${CFG[key].file}\n\nEnsure it is in the /models/ folder.`;
+        `Error: ${err?.message || err}\n\nFile: ${CFG[key].file}`;
     }
   );
 }
 
 function applyXplode3() {
   xparts3.forEach(({ node, origin, dir }) => {
-    node.position.copy(origin).addScaledVector(dir, xFac3 * 5);
+    node.position.copy(origin).addScaledVector(dir, xFac3 * 30);
   });
 }
 
@@ -778,7 +803,7 @@ function stopViewer3() {
 }
 
 // Exposed to HTML
-window.setExplode   = v  => { xTgt3 = v; document.getElementById('xpct').textContent = Math.round(v*100)+'%'; };
+window.setExplode = v => { xTgt3 = v; xFac3 = v; applyXplode3(); document.getElementById('xpct').textContent = Math.round(v*100)+'%'; };
 window.resetView    = () => {
   xTgt3 = 0; document.getElementById('explode-slider').value = 0; document.getElementById('xpct').textContent = '0%';
   showAll();
@@ -809,19 +834,8 @@ window.isolate = comp => {
 };
 
 // ═══════════════════════════════════════════════════════════
-//  AR VIEWER  ── AR.js Three.js (no A-Frame)
+//  AR VIEWER  ── WebXR
 // ═══════════════════════════════════════════════════════════
-//
-//  Pipeline:
-//   1. THREEx.ArToolkitSource  — manages webcam video element
-//   2. THREEx.ArToolkitContext — runs jsartoolkit5 detection each frame
-//   3. THREEx.ArMarkerControls — writes pose matrix to arMarkerRoot
-//   4. Our Three.js render loop draws arScene on top of the video
-//
-//  The AR.js video element is positioned behind #ar-canvas (z-index:0)
-//  and #ar-canvas has alpha:true so the 3D overlay is composited on top.
-//
-// ─────────────────────────────────────────────────────────
 function startAR() {
   document.getElementById('ar-view').classList.add('on');
   document.getElementById('scan-hint').classList.remove('hidden');
@@ -829,102 +843,72 @@ function startAR() {
   document.getElementById('ar-card').classList.remove('show');
   document.getElementById('cam-err').style.display = 'none';
 
+  if (!arRenderer) {
+    initAR();
+  }
+}
+
+function initAR() {
   const canvas = document.getElementById('ar-canvas');
   const W = window.innerWidth, H = window.innerHeight;
 
-  // ── Three.js renderer ───────────────────────────────────
-  arRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, logarithmicDepthBuffer: true });
+  arRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   arRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   arRenderer.setSize(W, H);
-  arRenderer.toneMapping       = THREE.ACESFilmicToneMapping;
+  arRenderer.toneMapping = THREE.ACESFilmicToneMapping;
   arRenderer.toneMappingExposure = 1.2;
-  arRenderer.outputColorSpace  = THREE.SRGBColorSpace;
-  arRenderer.autoClear         = false; // required: AR.js renders video separately
+  arRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  arRenderer.xr.enabled = true;
 
-  arScene  = new THREE.Scene();
-  arCamera = new THREE.Camera();
-  arScene.add(arCamera);
+  const arBtn = ARButton.createButton(arRenderer, { requiredFeatures: ['hit-test'] });
+  document.getElementById('ar-view').appendChild(arBtn);
 
-  // Lights for AR scene
+  arScene = new THREE.Scene();
+  arCamera = new THREE.PerspectiveCamera(70, W / H, 0.01, 20);
+
+  const pmremGenerator = new THREE.PMREMGenerator(arRenderer);
+  pmremGenerator.compileEquirectangularShader();
+  arScene.environment = pmremGenerator.fromScene(new RoomEnvironment()).texture;
+
   arScene.add(new THREE.AmbientLight(0xffffff, 1.5));
   const arSun = new THREE.DirectionalLight(0xfff0e0, 2.2);
   arSun.position.set(5, 10, 5);
   arScene.add(arSun);
-  arScene.add(Object.assign(new THREE.PointLight(0x4ba3c3, 1.0, 30), { position: new THREE.Vector3(-3, 4, 3) }));
 
-  // Marker root — AR.js updates this transform each frame
-  arMarkerRoot = new THREE.Group();
-  arScene.add(arMarkerRoot);
-
-  // Model container inside marker root
   arModelGroup = new THREE.Group();
   arModelGroup.visible = false;
-  arMarkerRoot.add(arModelGroup);
+  arScene.add(arModelGroup);
 
-  // ── AR toolkit source (webcam) ──────────────────────────
-  arToolkitSource = new THREEx.ArToolkitSource({
-    sourceType: 'webcam',
-    // Landscape vs portrait — pick appropriate resolution
-    sourceWidth:  window.innerWidth > window.innerHeight ? 640 : 480,
-    sourceHeight: window.innerWidth > window.innerHeight ? 480 : 640,
-    displayWidth:  window.innerWidth,
-    displayHeight: window.innerHeight,
-  });
+  const geom = new THREE.RingGeometry(0.1, 0.15, 32).rotateX(-Math.PI / 2);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x4ba3c3 });
+  arReticle = new THREE.Mesh(geom, mat);
+  arReticle.matrixAutoUpdate = false;
+  arReticle.visible = false;
+  arScene.add(arReticle);
 
-  arToolkitSource.init(
-    () => {
-      // Patch injected video for iOS Safari autoplay requirements
-      setTimeout(() => {
-        const vid = document.querySelector('#ar-view video');
-        if (vid) {
-          vid.setAttribute('playsinline', '');
-          vid.setAttribute('webkit-playsinline', '');
-          vid.setAttribute('autoplay', '');
-          vid.muted = true;
-          vid.play().catch(e => console.warn('Video play:', e));
-        }
-        onARResize();
-      }, 100);
-    },
-    err => {
-      console.error('AR camera init error:', err);
-      document.getElementById('cam-err').style.display = 'block';
-    }
-  );
+  arController = arRenderer.xr.getController(0);
+  arController.addEventListener('select', onARSelect);
+  arScene.add(arController);
 
-  // ── AR toolkit context ──────────────────────────────────
-  arToolkitContext = new THREEx.ArToolkitContext({
-    cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@2.2.2/data/data/camera_para.dat',
-    detectionMode:       'mono',
-    maxDetectionRate:    60,
-    canvasWidth:         640,
-    canvasHeight:        480,
-  });
-
-  arToolkitContext.init(() => {
-    arCamera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
-  });
-
-  // ── Marker controls ─────────────────────────────────────
-  // Uses the standard Hiro marker (print from https://ar-js-org.github.io/AR.js/)
-  arMarkerControls = new THREEx.ArMarkerControls(arToolkitContext, arMarkerRoot, {
-    type:            'preset',
-    preset:          'hiro',
-    smooth:          true,
-    smoothCount:     8,
-    smoothTolerance: 0.01,
-    smoothThreshold: 5,
-  });
-
-  // ── Load GLB ────────────────────────────────────────────
   loadGLBForAR();
 
-  // ── Resize ──────────────────────────────────────────────
-  window.addEventListener('resize', onARResize);
+  arRenderer.xr.addEventListener('sessionstart', () => {
+    arRunning = true;
+    document.getElementById('scan-hint').classList.remove('hidden');
+    document.getElementById('ar-status').textContent = 'Scanning for surfaces...';
+    document.getElementById('ar-status').classList.add('show');
+  });
 
-  // ── Loop ────────────────────────────────────────────────
-  arRunning = true;
-  loopAR();
+  arRenderer.xr.addEventListener('sessionend', () => {
+    arRunning = false;
+    hitTestSourceRequested = false;
+    hitTestSource = null;
+    arModelGroup.visible = false;
+    markerSeen = false;
+  });
+
+  window.addEventListener('resize', onARResize);
+  arRenderer.setAnimationLoop(loopAR);
 }
 
 function loadGLBForAR() {
@@ -932,15 +916,12 @@ function loadGLBForAR() {
     MODELS_PATH + CFG['explosion'].file,
     gltf => {
       const model = gltf.scene;
-
-      // Scale to ~0.8 AR units (marker is ~10 cm in real world)
-      normaliseModel(model, 0.8);
       applyMaterials(model);
+      normaliseModel(model, 0.15); // 15 cm realistic scale
 
-      // Build explode parts for AR
       const groups = buildGroups(model);
-      arXparts     = buildXplodeParts(model, groups);
-      arGlbRoot    = model;
+      arXparts = buildXplodeParts(model, groups);
+      arGlbRoot = model;
       arModelGroup.add(model);
     },
     undefined,
@@ -948,63 +929,87 @@ function loadGLBForAR() {
   );
 }
 
-function loopAR() {
-  if (!arRunning) return;
-  arAnimId = requestAnimationFrame(loopAR);
-  if (!arToolkitSource || !arToolkitContext || !arToolkitSource.ready) return;
-
-  // Update AR.js tracking
-  arToolkitContext.update(arToolkitSource.domElement);
-
-  // Infer marker visibility from the marker root's matrix
-  // (AR.js doesn't expose a clean event; we compare world Y position vs ~zero baseline)
-  const det = arMarkerControls && arMarkerRoot.visible;
-  if (det !== markerSeen) { markerSeen = det; onMarkerChanged(det); }
-
-  // Smooth explode
-  if (Math.abs(arXF - arXT) > 0.0005) { arXF += (arXT - arXF) * 0.1; applyARXplode(); }
-
-  arRenderer.clear();
-  arRenderer.render(arScene, arCamera);
+function onARSelect() {
+  if (arReticle.visible && arGlbRoot) {
+    arModelGroup.position.setFromMatrixPosition(arReticle.matrix);
+    arModelGroup.quaternion.setFromRotationMatrix(arReticle.matrix);
+    arModelGroup.visible = true;
+    
+    document.getElementById('scan-hint').classList.add('hidden');
+    document.getElementById('ar-status').textContent = '✓ Model placed';
+    document.getElementById('ar-status').classList.add('show');
+    
+    if(!markerSeen) {
+       markerSeen = true;
+       setTimeout(() => showARInfo(), 900);
+    }
+  }
 }
 
-function onMarkerChanged(found) {
-  arModelGroup.visible = !!arGlbRoot && found;
-  document.getElementById('scan-hint').classList.toggle('hidden', found);
-  document.getElementById('ar-status').classList.toggle('show', found);
-  if (found) {
-    // Brief delay then show info card
-    setTimeout(() => { if (markerSeen) showARInfo(); }, 900);
+function loopAR(timestamp, frame) {
+  if (!arRunning) return;
+
+  if (frame) {
+    const referenceSpace = arRenderer.xr.getReferenceSpace();
+    const session = arRenderer.xr.getSession();
+
+    if (hitTestSourceRequested === false) {
+      session.requestReferenceSpace('viewer').then(function (refSpace) {
+        session.requestHitTestSource({ space: refSpace }).then(function (source) {
+          hitTestSource = source;
+        });
+      });
+      session.addEventListener('end', function () {
+        hitTestSourceRequested = false;
+        hitTestSource = null;
+      });
+      hitTestSourceRequested = true;
+    }
+
+    if (hitTestSource) {
+      const hitTestResults = frame.getHitTestResults(hitTestSource);
+      if (hitTestResults.length > 0) {
+        const hit = hitTestResults[0];
+        arReticle.visible = true;
+        arReticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+      } else {
+        arReticle.visible = false;
+      }
+    }
   }
+
+  if (Math.abs(arXF - arXT) > 0.0005) { 
+    arXF += (arXT - arXF) * 0.1; 
+    applyARXplode(); 
+  }
+
+  arRenderer.render(arScene, arCamera);
 }
 
 function applyARXplode() {
   arXparts.forEach(({ node, origin, dir }) => {
-    node.position.copy(origin).addScaledVector(dir, arXF * 0.3);
+    node.position.copy(origin).addScaledVector(dir, arXF * 0.08); // Scale explosion movement down for 15cm model
   });
 }
 
 function onARResize() {
-  if (!arToolkitSource || !arRenderer) return;
-  arToolkitSource.onResizeElement();
-  arToolkitSource.copyElementSizeTo(arRenderer.domElement);
-  if (arToolkitContext && arToolkitContext.arController) {
-    arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
-  }
+  if (!arRenderer) return;
+  const W = window.innerWidth, H = window.innerHeight;
+  arRenderer.setSize(W, H);
+  arCamera.aspect = W / H;
+  arCamera.updateProjectionMatrix();
 }
 
 function stopAR() {
-  arRunning = false;
-  if (arAnimId) { cancelAnimationFrame(arAnimId); arAnimId = null; }
-  window.removeEventListener('resize', onARResize);
-  if (arRenderer) { arRenderer.dispose(); arRenderer = null; }
-  // Remove video AR.js injected into the DOM
-  document.querySelectorAll('#ar-view video').forEach(v => v.remove());
-  arGlbRoot = arModelGroup = arMarkerRoot = null;
-  arXparts = []; arXF = 0; arXT = 0; markerSeen = false;
+  if (arRenderer && arRenderer.xr.isPresenting) {
+    arRenderer.xr.getSession().end();
+  }
   document.getElementById('ar-view').classList.remove('on');
   document.getElementById('ar-card').classList.remove('show');
+  markerSeen = false; arXF = 0; arXT = 0;
+  if(arModelGroup) arModelGroup.visible = false;
 }
+
 
 // AR button handlers
 window.toggleARExplode = () => {
