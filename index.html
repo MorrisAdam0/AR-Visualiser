@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Operando PEFC — Visualiser | UCL</title>
 
-
 <style>
+/* Combined styles from both files, with AR-specific adjustments */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --dark:#001428;
@@ -188,7 +188,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 #ar-view{position:fixed;inset:0;z-index:500;background:#000;display:none}
 #ar-view.on{display:block}
 /* AR.js injects video — position it to fill screen */
-#ar-view video{
+#ar-view video{ /* This will be created by WebXR */
   position:absolute!important;inset:0!important;
   width:100%!important;height:100%!important;
   object-fit:cover!important;z-index:0!important;
@@ -272,6 +272,31 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   text-align:center;padding:1.5rem;max-width:280px;z-index:30;display:none;
 }
 #cam-err p{font-size:12px;color:rgba(255,200,200,.8);line-height:1.7}
+
+/* ARButton.js styling */
+.arjs-loader {
+  display: none !important; /* Hide AR.js default loader */
+}
+#ar-view button {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.9rem 2.5rem;
+  border-radius: 50px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: .04em;
+  transition: transform .15s;
+  z-index: 100; /* Ensure it's above other UI */
+}
+#ar-view button:active {
+  transform: translateX(-50%) scale(.97);
+}
 </style>
 </head>
 <body>
@@ -282,7 +307,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   <p>Operando PEFC · Visualiser</p>
 </div>
 
-<!-- LANDING -->
+<!-- ═══ LANDING ═══════════════════════════════════════════ -->
 <div id="landing">
   <p class="wordmark f1">University College London · Department of Chemistry</p>
   <h1 class="hero-title f2">Operando PEFC<br>Visualiser</h1>
@@ -307,16 +332,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   </div>
 
   <div id="ar-note" class="f4">
-    📍 Use WebXR native AR.<br>
+    📍 <strong>Use WebXR native AR.</strong><br>
     Point your camera at a flat surface and tap to place the cell.<br>
-    Requires a WebXR compatible browser.
+    <span style="color:rgba(255,255,255,.35);font-size:10px">Requires a WebXR compatible browser (e.g., Chrome on Android, Safari on iOS 13+)</span>
   </div>
 
   <button class="launch-btn f5" id="launch-btn" onclick="launch()">Open 3D Viewer</button>
   <p class="info-foot">Morris, Jervis &amp; Foglia · Gordon Conference on Neutron Scattering 2025</p>
 </div>
 
-<!-- 3D VIEWER -->
+<!-- ═══ 3D VIEWER ══════════════════════════════════════════ -->
 <div id="viewer">
   <div id="viewer-header">
     <h2 id="v-title">PEFC Assembly</h2>
@@ -371,8 +396,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   </div>
 </div>
 
-<!-- AR VIEWER -->
+<!-- ═══ AR VIEWER ═════════════════════════════════════════ -->
 <div id="ar-view">
+  <!-- ARButton will be injected here by JS -->
   <canvas id="ar-canvas"></canvas>
   <div id="cam-err"><p>⚠️ Camera access denied or unavailable.<br>Please allow camera permissions and reload the page.</p></div>
   <div id="ar-ui">
@@ -381,7 +407,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
       <p id="ar-sub">Tap START AR below, then tap on a surface to place</p>
     </div>
     <button id="ar-back" onclick="goBackFromAR()">← Exit</button>
-    <div id="ar-status">✓ Surface detected</div>
+    <div id="ar-status"></div>
     <div id="scan-hint">
       <div class="scan-frame">
         <div class="sc tl"></div><div class="sc tr"></div>
@@ -410,7 +436,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   </div>
 </div>
 
-<!-- importmap for Three.js ESM modules (3D viewer) -->
+<!-- Three.js ESM importmap -->
 <script type="importmap">
 {
   "imports": {
@@ -443,13 +469,11 @@ const CFG = {
 // Fusion 360 is Z-up. Three.js is Y-up.
 // Applying Rx = -PI/2 maps Fusion's Z → Three's Y.
 // Result: Swageloks on top (+Y), beam axis along Z. ✓ QENS convention.
-// No Ry rotation so the cell faces the viewer along -Z (natural camera view).
 const MODEL_RX = -Math.PI / 2;
-const MODEL_RY =  Math.PI / 2;
+const MODEL_RY =  Math.PI / 2; // Face camera initially (good for 3D viewer)
 const MODEL_RZ = 0;
 
 // ── COMPONENT NODE MAPPING ──────────────────────────────
-// Each key maps to substrings tested against GLB node names (case-sensitive, partial match)
 const COMP_NODES = {
   anode_puck:       ['Anode Sealing Puck', 'Anode Seal Puck', 'Anode Puck'],
   cathode_puck:     ['Cathode Sealing Puck', 'Cathode Seal Puck', 'Cathode Puck'],
@@ -494,6 +518,7 @@ let hitTestSource = null, hitTestSourceRequested = false;
 let arReticle;
 let arModelGroup, arGlbRoot, arXparts = [], arXF = 0, arXT = 0;
 let arRunning = false, markerSeen = false;
+let arButton = null; // To store the ARButton instance
 
 // ═══════════════════════════════════════════════════════════
 //  BOOT
@@ -501,8 +526,7 @@ let arRunning = false, markerSeen = false;
 window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     document.getElementById('loading-screen').classList.add('hidden');
-    const l = document.getElementById('landing');
-    l.classList.add('visible');
+    document.getElementById('landing').classList.add('visible');
   }, 500);
 });
 
@@ -525,9 +549,12 @@ window.selectModel = (btn, m) => {
 };
 
 window.launch = () => {
-  const l = document.getElementById('landing');
-  l.classList.add('hidden');
-  appMode === 'ar' ? startAR() : startViewer3();
+  document.getElementById('landing').classList.add('hidden');
+  if (appMode === 'ar') {
+    startAR();
+  } else {
+    startViewer3();
+  }
 };
 
 window.goBack = () => { stopViewer3(); showLanding(); };
@@ -556,11 +583,12 @@ function normaliseModel(model, targetSize) {
 function applyMaterials(model) {
   const toRemove = [];
   model.traverse(ch => {
+    // Remove "Cube" object which is sometimes a placeholder from Fusion export
     if (ch.name === 'Cube') { toRemove.push(ch); return; }
     if (!ch.isMesh) return;
     ch.castShadow = ch.receiveShadow = true;
     const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
-    mats.forEach(m => { 
+    mats.forEach(m => {
       if (m) {
         m.envMapIntensity = 1.0;
         // Make sure highly transparent parts (like acrylic pucks) are visible
@@ -585,7 +613,7 @@ function buildGroups(model) {
     }
     if (!matched && node.children) queue.push(...node.children);
   }
-  console.log('Component map:', Object.fromEntries(Object.entries(g).map(([k,v]) => [k, v.map(n => n.name).join(', ') || '(none)'])));
+  // console.log('Component map:', Object.fromEntries(Object.entries(g).map(([k,v]) => [k, v.map(n => n.name).join(', ') || '(none)'])));
   return g;
 }
 
@@ -717,7 +745,7 @@ function loadGLB3(key) {
   document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
 
   const glbUrl = MODELS_PATH + CFG[key].file;
-  console.log('Loading GLB from:', glbUrl);
+  // console.log('Loading GLB for 3D viewer from:', glbUrl);
   new GLTFLoader().load(
     glbUrl,
     gltf => {
@@ -738,22 +766,20 @@ function loadGLB3(key) {
       ctrl3.target.set(0, 0, 0);
       ctrl3.update();
 
-      // Debug overlay
-      document.getElementById('vload-txt').textContent =
-        `sz=${sz.x.toFixed(1)},${sz.y.toFixed(1)},${sz.z.toFixed(1)} | parts=${xparts3.length} | children=${model.children.length}`;
       document.getElementById('vload').classList.remove('hidden');
-      setTimeout(()=>document.getElementById('vload').classList.add('hidden'), 4000);
+      document.getElementById('vload-txt').textContent = `Model loaded.`;
+      setTimeout(()=>document.getElementById('vload').classList.add('hidden'), 1500);
     },
     xhr => {
       const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : 0;
-      document.getElementById('vload-txt').textContent = `Loading… ${pct}%`;
+      document.getElementById('vload-txt').textContent = `Loading model… ${pct}%`;
     },
     err => {
-      console.error('GLB error:', err);
+      console.error('GLB error (3D viewer):', err);
       document.getElementById('vload').classList.add('hidden');
       document.getElementById('verr').style.display = 'block';
       document.getElementById('verr-txt').textContent =
-        `Error: ${err?.message || err}\n\nFile: ${CFG[key].file}`;
+        `Error loading model:\n${err?.message || err}\n\nFile: ${CFG[key].file}`;
     }
   );
 }
@@ -793,8 +819,12 @@ function stopViewer3() {
   if (animId3) { cancelAnimationFrame(animId3); animId3 = null; }
   window.removeEventListener('resize', onResize3);
   document.getElementById('viewer-canvas').removeEventListener('click', onCanvas3Click);
-  ctrl3 && ctrl3.dispose(); R3 && R3.dispose();
-  R3 = S3 = C3 = ctrl3 = null; glbRoot3 = null; topGroups3 = {}; xparts3 = [];
+  ctrl3 && ctrl3.dispose();
+  if (R3) {
+    R3.dispose();
+    R3 = null;
+  }
+  S3 = C3 = ctrl3 = null; glbRoot3 = null; topGroups3 = {}; xparts3 = [];
   document.getElementById('viewer').classList.remove('on');
   document.getElementById('explode-slider').value = 0;
   document.getElementById('xpct').textContent = '0%';
@@ -802,7 +832,7 @@ function stopViewer3() {
   closeInfo();
 }
 
-// Exposed to HTML
+// Exposed to HTML (3D Viewer Controls)
 window.setExplode = v => { xTgt3 = v; xFac3 = v; applyXplode3(); document.getElementById('xpct').textContent = Math.round(v*100)+'%'; };
 window.resetView    = () => {
   xTgt3 = 0; document.getElementById('explode-slider').value = 0; document.getElementById('xpct').textContent = '0%';
@@ -811,7 +841,7 @@ window.resetView    = () => {
     ctrl3.autoRotate = true;
     const sz = new THREE.Box3().setFromObject(glbRoot3).getSize(new THREE.Vector3());
     const d  = Math.max(sz.x, sz.y, sz.z) * 1.9;
-    C3.position.set(0, d * 0.3, d); ctrl3.target.set(0,0,0); ctrl3.update();
+    C3.position.set(0, d * 0.5, d); ctrl3.target.set(0,0,0); ctrl3.update();
   }
 };
 window.toggleComp = btn => {
@@ -845,6 +875,17 @@ function startAR() {
 
   if (!arRenderer) {
     initAR();
+  } else {
+    // If renderer already exists, just trigger AR session start via the button
+    // This is a workaround if the button is always present but session not active
+    if (arButton && !arRenderer.xr.isPresenting) {
+        arButton.click(); // Programmatically click the ARButton
+    } else if (arRenderer.xr.isPresenting) {
+        // Already in an AR session, maybe just reset UI state
+        resetARView();
+        document.getElementById('ar-status').textContent = 'Scanning for surfaces...';
+        document.getElementById('ar-status').classList.add('show');
+    }
   }
 }
 
@@ -860,11 +901,12 @@ function initAR() {
   arRenderer.outputColorSpace = THREE.SRGBColorSpace;
   arRenderer.xr.enabled = true;
 
-  const arBtn = ARButton.createButton(arRenderer, { requiredFeatures: ['hit-test'] });
-  document.getElementById('ar-view').appendChild(arBtn);
+  // ARButton.createButton appends a button to the DOM element specified
+  arButton = ARButton.createButton(arRenderer, { requiredFeatures: ['hit-test'] });
+  document.getElementById('ar-view').appendChild(arButton);
 
   arScene = new THREE.Scene();
-  arCamera = new THREE.PerspectiveCamera(70, W / H, 0.01, 20);
+  arCamera = new THREE.PerspectiveCamera(70, W / H, 0.01, 20); // AR cameras are usually wide FOV
 
   const pmremGenerator = new THREE.PMREMGenerator(arRenderer);
   pmremGenerator.compileEquirectangularShader();
@@ -905,6 +947,11 @@ function initAR() {
     hitTestSource = null;
     arModelGroup.visible = false;
     markerSeen = false;
+    document.getElementById('ar-status').classList.remove('show');
+    document.getElementById('scan-hint').classList.add('hidden');
+    document.getElementById('ar-xpl-btn').classList.remove('on'); // Reset explode button
+    arXT = 0; arXF = 0; // Reset explode state
+    document.getElementById('ar-card').classList.remove('show'); // Hide info card
   });
 
   window.addEventListener('resize', onARResize);
@@ -912,20 +959,28 @@ function initAR() {
 }
 
 function loadGLBForAR() {
+  // Always load the 'explosion' model for AR to allow explode/collapse functionality
+  const glbUrl = MODELS_PATH + CFG['explosion'].file;
+  // console.log('Loading GLB for AR viewer from:', glbUrl);
   new GLTFLoader().load(
-    MODELS_PATH + CFG['explosion'].file,
+    glbUrl,
     gltf => {
       const model = gltf.scene;
       applyMaterials(model);
-      normaliseModel(model, 0.15); // 15 cm realistic scale
+      normaliseModel(model, 0.15); // Target 15 cm realistic scale for AR
 
       const groups = buildGroups(model);
       arXparts = buildXplodeParts(model, groups);
       arGlbRoot = model;
       arModelGroup.add(model);
     },
-    undefined,
-    err => console.error('AR GLB load error:', err)
+    undefined, // Progress is not displayed in AR loading for simplicity
+    err => {
+      console.error('AR GLB load error:', err);
+      document.getElementById('cam-err').style.display = 'block';
+      document.getElementById('cam-err').querySelector('p').textContent =
+        `Error loading AR model:\n${err?.message || err}`;
+    }
   );
 }
 
@@ -934,20 +989,21 @@ function onARSelect() {
     arModelGroup.position.setFromMatrixPosition(arReticle.matrix);
     arModelGroup.quaternion.setFromRotationMatrix(arReticle.matrix);
     arModelGroup.visible = true;
-    
+
     document.getElementById('scan-hint').classList.add('hidden');
     document.getElementById('ar-status').textContent = '✓ Model placed';
     document.getElementById('ar-status').classList.add('show');
-    
+
     if(!markerSeen) {
        markerSeen = true;
+       // Only show info card once after initial placement
        setTimeout(() => showARInfo(), 900);
     }
   }
 }
 
 function loopAR(timestamp, frame) {
-  if (!arRunning) return;
+  if (!arRunning || !arRenderer || !arScene || !arCamera) return;
 
   if (frame) {
     const referenceSpace = arRenderer.xr.getReferenceSpace();
@@ -978,9 +1034,9 @@ function loopAR(timestamp, frame) {
     }
   }
 
-  if (Math.abs(arXF - arXT) > 0.0005) { 
-    arXF += (arXT - arXF) * 0.1; 
-    applyARXplode(); 
+  if (Math.abs(arXF - arXT) > 0.0005) {
+    arXF += (arXT - arXF) * 0.1;
+    applyARXplode();
   }
 
   arRenderer.render(arScene, arCamera);
@@ -993,7 +1049,7 @@ function applyARXplode() {
 }
 
 function onARResize() {
-  if (!arRenderer) return;
+  if (!arRenderer || !arCamera) return;
   const W = window.innerWidth, H = window.innerHeight;
   arRenderer.setSize(W, H);
   arCamera.aspect = W / H;
@@ -1008,8 +1064,18 @@ function stopAR() {
   document.getElementById('ar-card').classList.remove('show');
   markerSeen = false; arXF = 0; arXT = 0;
   if(arModelGroup) arModelGroup.visible = false;
+  // If ARButton was created, remove it to prevent multiple buttons
+  if (arButton && arButton.parentNode) {
+      arButton.parentNode.removeChild(arButton);
+      arButton = null;
+  }
+  // Dispose AR renderer and scene after session ends and button is removed
+  if (arRenderer) {
+      arRenderer.dispose();
+      arRenderer = null;
+  }
+  arScene = arCamera = arController = null; arGlbRoot = null; arXparts = [];
 }
-
 
 // AR button handlers
 window.toggleARExplode = () => {
@@ -1017,11 +1083,38 @@ window.toggleARExplode = () => {
   document.getElementById('ar-xpl-btn').classList.toggle('on', on);
   arXT = on ? 1 : 0;
 };
-window.showARInfo  = () => document.getElementById('ar-card').classList.add('show');
+window.showARInfo  = () => {
+    document.getElementById('ar-card').classList.add('show');
+    // Update AR info card content to reflect the chosen model (explosion, which is fixed for AR)
+    const info = {
+        title: 'Full Cell Assembly (Exploded View)',
+        desc: 'Complete MEA stack with Al current collector plates. Active area 10×10 mm. 1 mm Al neutron-transparent window. Swagelok fittings in QENS orientation (vertical, +Y). This exploded view allows inspection of individual components.',
+        specs: [
+            ['Technique', 'SANS + SAXS'],
+            ['Active area', '10×10 mm'],
+            ['Gas inlets', '4× Swagelok ¼″'],
+            ['Fasteners', '8× M4 + PTFE'],
+            ['Window', '1 mm Al']
+        ]
+    };
+    document.getElementById('ar-card-title').textContent = info.title;
+    document.getElementById('ar-card-desc').textContent  = info.desc;
+    document.getElementById('ar-card-specs').innerHTML = (info.specs || []).map(s =>
+        `<span class="ar-stat"><span class="sk">${s[0]}</span><span class="sv">${s[1]}</span></span>`
+    ).join('');
+};
 window.resetARView = () => {
-  arXT = 0;
+  arXT = 0; arXF = 0;
   document.getElementById('ar-xpl-btn').classList.remove('on');
   document.getElementById('ar-card').classList.remove('show');
+  if (arModelGroup) {
+      arModelGroup.position.set(0, 0, 0); // Reset position (will be updated by reticle)
+      arModelGroup.quaternion.set(0, 0, 0, 1); // Reset rotation
+  }
+  document.getElementById('ar-status').textContent = 'Scanning for surfaces...';
+  document.getElementById('ar-status').classList.add('show');
+  document.getElementById('scan-hint').classList.remove('hidden');
+  markerSeen = false; // Allow info card to show again
 };
 
 </script>
