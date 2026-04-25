@@ -221,6 +221,1299 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   background:transparent !important;
   /* canvas receives pointer events for orbit/pinch controls */
   touch-action:none;
+  pointer-events: none; /* Explicitly prevent #ar-canvas from capturing pointer events */
+}
+#ar-ui{position:absolute;inset:0;z-index:10;pointer-events:none}
+#ar-header{
+  position:absolute;top:0;left:0;right:0;pointer-events:none; /* Make header itself non-interactive */
+  padding:.85rem 1rem .7rem;
+  background:linear-gradient(to bottom,rgba(0,16,40,.88) 0%,transparent 100%);
+}
+#ar-header h1{font-family:var(--serif);font-size:14px;color:#fff;font-weight:normal; pointer-events: all;} /* Make content interactive */
+#ar-header p{font-size:11px;color:var(--accent);margin-top:2px; pointer-events: all;} /* Make content interactive */
+#ar-back{
+  position:absolute;top:.85rem;right:1rem;pointer-events:all;
+  background:rgba(0,16,40,.85);border:1px solid rgba(75,163,195,.4);
+  border-radius:9px;color:var(--accent);padding:.42rem .85rem;
+  font-size:11.5px;font-family:var(--sans);cursor:pointer;backdrop-filter:blur(8px);
+  z-index: 1000; /* Ensure it's above other elements */
+  min-width: 44px; /* Large tap target */
+  min-height: 44px; /* Large tap target */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#scan-hint{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);text-align:center;
+  transition:opacity .4s ease;
+}
+#scan-hint.hidden{opacity:0;pointer-events:none}
+.scan-frame{
+  width:160px;height:160px;border:1.5px solid rgba(75,163,195,.4);
+  border-radius:12px;margin:0 auto .75rem;position:relative;
+  animation:scanPulse 2s ease-in-out infinite;
+}
+@keyframes scanPulse{0%,100%{border-color:rgba(75,163,195,.25)}50%{border-color:rgba(75,163,195,.85)}}
+.sc{position:absolute;width:16px;height:16px;border-color:var(--accent);border-style:solid}
+.sc.tl{top:-2px;left:-2px;border-width:2.5px 0 0 2.5px;border-radius:3px 0 0 0}
+.sc.tr{top:-2px;right:-2px;border-width:2.5px 2.5px 0 0;border-radius:0 3px 0 0}
+.sc.bl{bottom:-2px;left:-2px;border-width:0 0 2.5px 2.5px;border-radius:0 0 0 3px}
+.sc.br{bottom:-2px;right:-2px;border-width:0 2.5px 2.5px 0;border-radius:0 0 3px 0}
+#scan-hint p{font-size:12px;color:rgba(255,255,255,.65)}
+#scan-hint small{font-size:10px;color:var(--accent);display:block;margin-top:3px}
+#ar-status{
+  position:absolute;top:3.6rem;left:50%;transform:translateX(-50%);
+  background:rgba(68,204,136,.15);border:1px solid rgba(68,204,136,.4);
+  border-radius:20px;padding:.3rem .85rem;font-size:11px;color:#44cc88;
+  opacity:0;transition:opacity .3s ease;pointer-events:none;white-space:nowrap;z-index: 100;
+}
+#ar-status.show{opacity:1}
+#ar-card{
+  position:absolute;bottom:0;left:0;right:0;pointer-events:all;
+  background:var(--panel);backdrop-filter:blur(14px);border-top:1px solid var(--border);
+  padding:.9rem 1rem 1.4rem;transform:translateY(100%);
+  transition:transform .35s cubic-bezier(.16,1,.3,1);z-index:20;
+}
+#ar-card.show{transform:translateY(0)}
+#ar-card h3{font-family:var(--serif);font-size:14px;color:var(--gold);font-weight:normal;margin-bottom:.3rem}
+#ar-card .ar-desc{font-size:11px;color:rgba(255,255,255,.6);line-height:1.65;margin-bottom:.6rem}
+.ar-specs{display:flex;flex-wrap:wrap;gap:.5rem 1.2rem}
+.ar-stat .sk{display:block;font-size:9px;color:rgba(255,255,255,.3);
+  letter-spacing:.05em;text-transform:uppercase}
+.ar-stat .sv{display:block;font-size:12px;color:var(--accent);font-weight:600}
+#ar-card-close{float:right;background:none;border:none;color:rgba(255,255,255,.28);
+  cursor:pointer;font-size:16px;padding:0 0 0 .5rem}
+#ar-ctrls{
+  position:absolute;bottom:0;left:0;right:0;pointer-events:all;
+  padding:.6rem .9rem 1.8rem;
+  background:linear-gradient(to top,rgba(0,0,0,.75) 0%,transparent 100%);
+  display:flex;gap:.4rem;
+}
+#ar-card.show ~ #ar-ctrls{display:none}
+.ar-btn{
+  flex:1;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);
+  border-radius:10px;color:#fff;padding:.45rem .4rem;font-size:10px;
+  font-family:var(--sans);cursor:pointer;transition:all .15s;
+  backdrop-filter:blur(8px);text-align:center;line-height:1.3;
+}
+.ar-btn .ci{display:block;font-size:1rem;margin-bottom:1px}
+.ar-btn:active,.ar-btn.on{background:rgba(75,163,195,.28);border-color:var(--accent)}
+#cam-err{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;padding:1.5rem;max-width:300px;z-index:30;display:none;
+}
+#cam-err .err-box{
+  background:rgba(180,30,30,.18);border:1px solid rgba(200,60,60,.4);
+  border-radius:14px;padding:1.2rem 1.4rem;
+}
+#cam-err p{font-size:12px;color:rgba(255,180,180,.9);line-height:1.75;margin-bottom:.8rem}
+#cam-err button{
+  background:var(--accent);color:#fff;border:none;border-radius:8px;
+  padding:.45rem 1.2rem;font-size:12px;cursor:pointer;font-family:var(--sans);
+}
+/* Camera starting spinner */
+#ar-camload{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;z-index:5;display:none;
+}
+#ar-camload .ring{margin:0 auto .6rem}
+#ar-camload p{font-size:11px;color:rgba(255,255,255,.5)}
+/* Opacity / blend slider */
+#ar-blend-row{
+  position:absolute;bottom:5.5rem;left:1rem;right:1rem;pointer-events:all;
+  display:flex;align-items:center;gap:.7rem;
+  background:rgba(0,0,0,.35);border-radius:10px;padding:.4rem .75rem;
+  backdrop-filter:blur(8px);
+}
+#ar-blend-row label{font-size:10px;color:rgba(255,255,255,.5);white-space:nowrap;flex-shrink:0}
+#ar-blend-slider{
+  flex:1;-webkit-appearance:none;height:3px;
+  background:rgba(255,255,255,.2);border-radius:2px;outline:none;cursor:pointer;
+}
+#ar-blend-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;
+  background:var(--accent);border-radius:50%;
+  box-shadow:0 0 6px rgba(75,163,195,.6);
+}
+#ar-blend-val{font-size:10px;color:var(--accent);font-weight:600;min-width:2.5rem;text-align:right;flex-shrink:0}
+/* Flip-cam button */
+#ar-flip-btn{
+  position:absolute;top:.85rem;left:1rem;pointer-events:all;
+  background:rgba(0,16,40,.75);border:1px solid rgba(255,255,255,.2);
+  border-radius:9px;color:rgba(255,255,255,.7);padding:.38rem .7rem;
+  font-size:11px;font-family:var(--sans);cursor:pointer;backdrop-filter:blur(8px);
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="ring"></div>
+  <p>Operando PEFC · Visualiser</p>
+</div>
+
+<!-- LANDING -->
+<div id="landing">
+  <p class="wordmark f1">University College London · Department of Chemistry</p>
+  <h1 class="hero-title f2">Operando PEFC<br>Visualiser</h1>
+  <p class="hero-sub f2">Explore the neutron-transparent fuel cell in 3D<br>or visualise it live with your camera.</p>
+
+  <div class="mode-tabs f3">
+    <button class="mode-tab on" id="tab-3d" onclick="setMode('3d')">🔬 3D Viewer</button>
+    <button class="mode-tab"   id="tab-ar" onclick="setMode('ar')">📷 AR Camera</button>
+  </div>
+
+  <div class="model-grid f4" id="model-grid-3d">
+    <button class="model-btn on" onclick="selectModel(this,'explosion')" data-m="explosion">
+      <span class="icon">💥</span>
+      <span class="lbl">Exploded View</span>
+      <span class="desc">All components separated</span>
+    </button>
+    <button class="model-btn" onclick="selectModel(this,'complete')" data-m="complete">
+      <span class="icon">⚙️</span>
+      <span class="lbl">Complete Assembly</span>
+      <span class="desc">Full assembled PEFC stack</span>
+    </button>
+  </div>
+
+  <div id="ar-note" class="f4">
+    📷 Live camera overlay — no markers needed.<br>
+    Your rear camera streams full-screen. The PEFC 3D model is rendered on top.<br>
+    <strong>Drag</strong> to rotate · <strong>Pinch</strong> to scale · Blend slider to fade model in/out.<br>
+    <span style="opacity:.55;font-size:10px">Works on iPhone Safari, Chrome Android, any modern browser · Camera permission required</span>
+  </div>
+
+  <button class="launch-btn f5" id="launch-btn" onclick="launch()">Open 3D Viewer</button>
+  <p class="info-foot">Morris &amp; Foglia · Gordon Conference on Neutron Scattering 2026</p>
+</div>
+
+<!-- 3D VIEWER -->
+<div id="viewer">
+  <div id="viewer-header">
+    <h2 id="v-title">PEFC Assembly</h2>
+    <div class="hbtns">
+      <button class="hbtn" onclick="resetView()">↺ Reset</button>
+      <button class="hbtn" onclick="goBack()">← Back</button>
+    </div>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="viewer-canvas"></canvas>
+    <div id="vload"><div class="ring"></div><p id="vload-txt">Loading model…</p></div>
+    <div id="verr"><p id="verr-txt"></p></div>
+    <div id="info-panel">
+      <button id="info-close" onclick="closeInfo()">✕</button>
+      <h3 id="ip-title"></h3>
+      <p class="ip-desc" id="ip-desc"></p>
+      <div id="ip-specs"></div>
+    </div>
+  </div>
+  <div id="viewer-footer">
+    <div class="ctrl-section">
+      <span class="ctrl-label">Explode View</span>
+      <div class="slider-row">
+        <span class="slbl">0%</span>
+        <input type="range" id="explode-slider" min="0" max="100" value="0" step="1"
+               oninput="setExplode(this.value/100)">
+        <span id="xpct">0%</span>
+      </div>
+    </div>
+    <div class="ctrl-section">
+      <span class="ctrl-label">Toggle Components</span>
+      <div class="comp-btns-wrap">
+        <button class="cbtn on" data-comp="anode"            onclick="toggleComp(this)">🔵 Anode Plate</button>
+        <button class="cbtn on" data-comp="cathode"          onclick="toggleComp(this)">🔴 Cathode Plate</button>
+        <button class="cbtn on" data-comp="mea"              onclick="toggleComp(this)">🟡 MEA</button>
+        <button class="cbtn on" data-comp="ptfe_gaskets"     onclick="toggleComp(this)">⬜ PTFE Gaskets</button>
+        <button class="cbtn on" data-comp="ptfe_bushings"    onclick="toggleComp(this)">⬛ PTFE Bushings</button>
+        <button class="cbtn on" data-comp="fasteners"        onclick="toggleComp(this)">🔩 Fasteners</button>
+        <button class="cbtn on" data-comp="swagelok_anode"   onclick="toggleComp(this)">🟢 Swagelok Anode</button>
+        <button class="cbtn on" data-comp="swagelok_cathode" onclick="toggleComp(this)">🟠 Swagelok Cathode</button>
+        <button class="cbtn on" data-comp="anode_puck"       onclick="toggleComp(this)">◽ Anode Puck</button>
+        <button class="cbtn on" data-comp="cathode_puck"     onclick="toggleComp(this)">◾ Cathode Puck</button>
+      </div>
+      <div class="qbtns">
+        <button class="qbtn" onclick="showAll()">Show All</button>
+        <button class="qbtn" onclick="hideAll()">Hide All</button>
+        <button class="qbtn" onclick="isolate('mea')">MEA Only</button>
+        <button class="qbtn" onclick="isolate('anode')">Anode Only</button>
+        <button class="qbtn" onclick="isolate('cathode')">Cathode Only</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CAMERA OVERLAY (AR)
+     Live getUserMedia video fills #ar-view.
+     Three.js canvas rendered on top with alpha:true.
+     Works on iPhone Safari 14.3+, Chrome Android, Desktop browsers.
+     No WebXR. No AR.js. No markers.
+-->
+<div id="ar-view">
+  <!-- 1. Live camera feed -->
+  <video id="ar-video" autoplay muted playsinline webkit-playsinline
+         style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0">
+  </video>
+
+  <!-- 2. Three.js transparent overlay -->
+  <canvas id="ar-canvas"></canvas>
+
+  <!-- 3. Camera starting spinner -->
+  <div id="ar-camload">
+    <div class="ring"></div>
+    <p>Starting camera…</p>
+  </div>
+
+  <!-- 4. Permission / error message -->
+  <div id="cam-err">
+    <div class="err-box">
+      <p id="cam-err-msg">⚠️ Camera access denied.<br>Please allow camera access and try again.</p>
+      <button onclick="retryCamera()">Try Again</button>
+    </div>
+  </div>
+
+  <!-- 5. HUD layer (pointer-events:none root, children opt-in) -->
+  <div id="ar-ui">
+    <div id="ar-header">
+      <h1>Operando PEFC</h1>
+      <p id="ar-sub">Drag to rotate · Pinch to scale</p>
+    </div>
+    <button id="ar-back" onclick="stopAR()">← Exit</button>
+    <button id="ar-flip-btn" onclick="flipCamera()">⟳ Flip</button>
+    <div id="ar-status">📷 Camera live</div>
+
+    <!-- Opacity blend slider -->
+    <div id="ar-blend-row">
+      <label>Blend</label>
+      <input type="range" id="ar-blend-slider" min="10" max="100" value="85" step="5"
+             oninput="setARBlend(this.value)">
+      <span id="ar-blend-val">85%</span>
+    </div>
+
+    <!-- Info card (slides up) -->
+    <div id="ar-card">
+      <button id="ar-card-close" onclick="document.getElementById('ar-card').classList.remove('show')">✕</button>
+      <h3>Full Cell Assembly</h3>
+      <p class="ar-desc">Complete MEA stack with Al bipolar plates. Active area 30×30 mm2. 6 mm Al neutron-transparent window.</p>
+      <div class="ar-specs">
+        <span class="ar-stat"><span class="sk">Technique</span><span class="sv">SANS + SAXS + QENS</span></span>
+        <span class="ar-stat"><span class="sk">Active area</span><span class="sv">10×10 mm</span></span>
+        <span class="ar-stat"><span class="sk">Gas inlets</span><span class="sv">4× Swagelok ¼″</span></span>
+        <span class="ar-stat"><span class="sk">Window</span><span class="sv">1 mm Al</span></span>
+        <span class="ar-stat"><span class="sk">Fasteners</span><span class="sv">8× M4 + PTFE</span></span>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div id="ar-ctrls">
+      <button class="ar-btn" id="ar-xpl-btn" onclick="toggleAREplode()">
+        <span class="ci">💥</span>Explode
+      </button>
+      <button class="ar-btn" onclick="document.getElementById('ar-card').classList.add('show')">
+        <span class="ci">ℹ️</span>Info
+      </button>
+      <button class="ar-btn" onclick="resetARView()">
+        <span class="ci">↺</span>Reset
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- importmap for Three.js ESM modules (3D viewer) -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+'use strict';
+
+import * as THREE from 'three';
+import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// AR: using getUserMedia — no WebXR imports needed
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
+const MODELS_PATH = './models/';
+
+const CFG = {
+  explosion: { name: 'Exploded View',     file: 'pefc-explosion.glb' },
+  complete:  { name: 'Complete Assembly', file: 'pefc-complete.glb'  },
+};
+
+// ── ORIENTATION ─────────────────────────────────────────
+// Fusion 360 is Z-up. Three.js is Y-up.
+// Applying Rx = -PI/2 maps Fusion's Z → Three's Y.
+// Result: Swageloks on top (+Y), beam axis along Z. ✓ QENS convention.
+// No Ry rotation so the cell faces the viewer along -Z (natural camera view).
+const MODEL_RX = -Math.PI / 2;
+const MODEL_RY =  Math.PI / 2;
+const MODEL_RZ = 0;
+
+// ── COMPONENT NODE MAPPING ──────────────────────────────
+// Each key maps to substrings tested against GLB node names (case-sensitive, partial match)
+const COMP_NODES = {
+  anode_puck:       ['Anode Sealing Puck', 'Anode Seal Puck', 'Anode Puck'],
+  cathode_puck:     ['Cathode Sealing Puck', 'Cathode Seal Puck', 'Cathode Puck'],
+  swagelok_anode:   ['Swagelock Male Anode', 'Swagelok Male Anode', 'Swagelock Anode', 'Swagelok Anode'],
+  swagelok_cathode: ['Swagelock Cathode', 'Swagelok Cathode'],
+  ptfe_bushings:    ['Brushing', 'Bushing', 'Bush'],
+  ptfe_gaskets:     ['PTFE Gaskets', 'Gasket'],
+  mea:              ['MEA'],
+  anode:            ['Anode'],
+  cathode:          ['Catode', 'Cathode'],
+  fasteners:        ['Fastener', 'Bolt', 'Screw'],
+};
+
+const COMP_INFO = {
+  anode:            { title: 'Anode Plate',           desc: 'Aluminium 6082 bipolar plate with serpentine flow field. 30x30 mm2 active area.',                                    specs: [['Material','Al 6082'],['Window','6 mm Al'],['Function','Current collection + gas distribution']] },
+  cathode:          { title: 'Cathode Plate',          desc: 'Mirror of anode plate. SAXS sealing puck on outer face enables simultaneous X-ray measurement.',                                        specs: [['Material','Al 6082'],['Feature','SAXS sealing puck face'],['Function','Current collection + gas distribution']] },
+  mea:              { title: 'MEA',                    desc: 'Three-layer MEA: Anode GDE / Nafion 117 / 211 / 212 PEM / cathode GDE.',                                      specs: [['Membrane','Nafion 117/211/212, 183/25/50 μm'],['EW','1100 g/eq'],['Ionomer peak','~0.15 Å⁻¹']] },
+  ptfe_gaskets:     { title: 'PTFE Gaskets',           desc: 'PTFE sheet gaskets provide uniform compression and electrical isolation between Al plates and the MEA.',                                  specs: [['Material','PTFE'],['Thickness','~0.15 mm'],['Function','Seal + electrical isolation']] },
+  ptfe_bushings:    { title: 'PTFE Bolt Bushings',     desc: 'PTFE bushings insulate M4 stainless steel fasteners from the Al plates, preventing electrical short-circuit through the bolts.',         specs: [['Material','PTFE'],['Count','8'],['Function','Electrical isolation of fasteners']] },
+  fasteners:        { title: 'M4 Fasteners',           desc: '8 stainless steel M4 screws provide uniform compression force. PTFE bushings prevent contact with Al plates.',             specs: [['Material','SS'],['Thread','M4'],['Count','8']] },
+  swagelok_anode:   { title: 'Swagelok — Anode',       desc: 'SS-400-1/4 connectors deliver humidified H₂ to the anode flow field inlet and outlet. Mounted on top in QENS orientation.',             specs: [['Part','SS-400-1/4'],['Fluid','Humidified H₂'],['Count','2 (inlet + outlet)']] },
+  swagelok_cathode: { title: 'Swagelok — Cathode',     desc: 'SS-400-1/4 connectors deliver humidified air to the cathode flow field. Mounted on top in QENS orientation.',                       specs: [['Part','SS-400-1/4'],['Fluid','Humidified air'],['Count','2 (inlet + outlet)']] },
+  anode_puck:       { title: 'Anode Sealing Puck',     desc: 'Al 6082 sealing puck on the outer anode face. Provides gas tightness for QENS, and X-ray window for SAXS',                  specs: [['Material','Al 6082'],['Function','Beam window + sealing']] },
+  cathode_puck:     { title: 'Cathode Sealing Puck',   desc: 'Matched sealing puck on cathode outer face. Together with anode puck defines the X-ray/neutron transmission path through the cell.',    specs: [['Material','Al 6082'],['Function','Beam window + sealing']] },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════════════════════════
+let appMode      = '3d';
+let currentModel = 'explosion';
+
+// ── 3D viewer ────────────────────────────────────────────
+let R3, S3, C3, ctrl3, animId3, isRunning3 = false;
+let glbRoot3 = null, topGroups3 = {}, compVis3 = {};
+let xparts3 = [], xFac3 = 0, xTgt3 = 0;
+let ray3, mouse3;
+
+// ── Camera Overlay (AR) ─────────────────────────────────
+// Uses getUserMedia — works on iOS Safari, Chrome Android, all desktops.
+// No WebXR, no AR.js, no markers required.
+let arRenderer, arScene, arCamera, arCtrl;
+let arAnimId, arRunning = false;
+let arStream    = null;         // MediaStream from getUserMedia
+let arFacing    = 'environment'; // rear cam by default
+let arGlbRoot   = null;
+let arXparts    = [], arXF = 0, arXT = 0;
+let arBlend     = 0.85;         // model opacity over camera feed
+let arExploded  = false;
+
+// ═══════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    document.getElementById('loading-screen').classList.add('hidden');
+    const l = document.getElementById('landing');
+    l.classList.add('visible');
+  }, 500);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  LANDING CONTROLS
+// ═══════════════════════════════════════════════════════════
+window.setMode = m => {
+  appMode = m;
+  document.getElementById('tab-3d').classList.toggle('on', m === '3d');
+  document.getElementById('tab-ar').classList.toggle('on', m === 'ar');
+  document.getElementById('model-grid-3d').style.display = m === '3d' ? 'grid' : 'none';
+  document.getElementById('ar-note').classList.toggle('show', m === 'ar');
+  document.getElementById('launch-btn').textContent = m === '3d' ? 'Open 3D Viewer' : 'Launch AR Camera';
+};
+
+window.selectModel = (btn, m) => {
+  currentModel = m;
+  document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+};
+
+window.launch = () => {
+  const l = document.getElementById('landing');
+  l.classList.add('hidden');
+  appMode === 'ar' ? startAR() : startViewer3();
+};
+
+window.goBack = () => { stopViewer3(); showLanding(); };
+window.goBackFromAR = () => { stopAR(); showLanding(); };
+
+function showLanding() {
+  const l = document.getElementById('landing');
+  l.classList.add('visible');
+  l.classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SHARED HELPERS
+// ═══════════════════════════════════════════════════════════
+function normaliseModel(model, targetSize) {
+  // Apply rotation first so the bounding box is computed in the final orientation
+  model.rotation.set(MODEL_RX, MODEL_RY, MODEL_RZ);
+  const box  = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const sc   = targetSize / Math.max(size.x, size.y, size.z, 0.001);
+  model.scale.setScalar(sc);
+  const box2 = new THREE.Box3().setFromObject(model);
+  model.position.sub(box2.getCenter(new THREE.Vector3()));
+}
+
+function applyMaterials(model) {
+  const toRemove = [];
+  model.traverse(ch => {
+    if (ch.name === 'Cube') { toRemove.push(ch); return; }
+    if (!ch.isMesh) return;
+    ch.castShadow = ch.receiveShadow = true;
+    const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
+    mats.forEach(m => { 
+      if (m) {
+        m.envMapIntensity = 1.0;
+        // Make sure highly transparent parts (like acrylic pucks) are visible
+        if (m.transparent && m.opacity < 0.2) m.opacity = 0.35;
+        if (m.transmission > 0) m.transmission = Math.min(m.transmission, 0.9);
+      }
+    });
+  });
+  toRemove.forEach(ch => ch.removeFromParent());
+}
+
+function buildGroups(model) {
+  const g = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, []]));
+  // BFS: find highest-level node matching each pattern (stops descending once matched)
+  const queue = [...model.children];
+  while (queue.length) {
+    const node = queue.shift();
+    if (!node.name) { if (node.children) queue.push(...node.children); continue; }
+    let matched = false;
+    for (const [comp, pats] of Object.entries(COMP_NODES)) {
+      if (pats.some(p => node.name.includes(p))) { g[comp].push(node); matched = true; break; }
+    }
+    if (!matched && node.children) queue.push(...node.children);
+  }
+  console.log('Component map:', Object.fromEntries(Object.entries(g).map(([k,v]) => [k, v.map(n => n.name).join(', ') || '(none)'])));
+  return g;
+}
+
+function buildXplodeParts(model, groups) {
+  const parts = [];
+  model.updateWorldMatrix(true, true);
+  const invMat = new THREE.Matrix4().copy(model.matrixWorld).invert();
+  for (const nodes of Object.values(groups)) {
+    nodes.forEach(node => {
+      const box = new THREE.Box3().setFromObject(node);
+      if (box.isEmpty()) return;
+      // Convert world-space centre to model local space so direction is correct after rotation
+      const localCentre = box.getCenter(new THREE.Vector3()).applyMatrix4(invMat);
+      if (localCentre.length() < 1e-5) return;
+      parts.push({ node, origin: node.position.clone(), dir: localCentre.normalize() });
+    });
+  }
+  return parts;
+}
+
+function openInfo(info) {
+  document.getElementById('ip-title').textContent = info.title;
+  document.getElementById('ip-desc').textContent  = info.desc;
+  document.getElementById('ip-specs').innerHTML = (info.specs || []).map(s =>
+    `<div class="spec-row"><span class="sk">${s[0]}</span><span class="sv">${s[1]}</span></div>`
+  ).join('');
+  document.getElementById('info-panel').classList.add('show');
+}
+window.closeInfo = () => document.getElementById('info-panel').classList.remove('show');
+
+// ═══════════════════════════════════════════════════════════
+//  3D VIEWER
+// ═══════════════════════════════════════════════════════════
+function startViewer3() {
+  const viewer = document.getElementById('viewer');
+  viewer.classList.add('on');
+  document.getElementById('v-title').textContent  = CFG[currentModel].name;
+  document.getElementById('vload').classList.remove('hidden');
+  document.getElementById('verr').style.display   = 'none';
+
+  const canvas = document.getElementById('viewer-canvas');
+  const wrap   = document.getElementById('canvas-wrap');
+  const W = wrap.offsetWidth || window.innerWidth;
+  const H = wrap.offsetHeight || window.innerHeight - 160;
+
+  // Renderer
+  R3 = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  R3.setPixelRatio(Math.min(devicePixelRatio, 2));
+  R3.setSize(W, H);
+  R3.shadowMap.enabled = true;
+  R3.shadowMap.type    = THREE.PCFSoftShadowMap;
+  R3.toneMapping       = THREE.ACESFilmicToneMapping;
+  R3.toneMappingExposure = 1.25;
+  R3.outputColorSpace  = THREE.SRGBColorSpace;
+
+  // Scene
+  S3  = new THREE.Scene();
+  S3.fog = new THREE.FogExp2(0x000810, 0.022);
+
+  const pmremGenerator = new THREE.PMREMGenerator(R3);
+  pmremGenerator.compileEquirectangularShader();
+  S3.environment = pmremGenerator.fromScene(new RoomEnvironment()).texture;
+
+  // Camera — looking along -Z; Swageloks will appear at top of screen
+  C3  = new THREE.PerspectiveCamera(42, W / H, 0.01, 2000);
+  C3.position.set(0, 5, 22);
+  C3.lookAt(0, 0, 0);
+
+  // Lights
+  S3.add(new THREE.AmbientLight(0x3a5a80, 1.2));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 2.0);
+  sun.position.set(10, 20, 12); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); S3.add(sun);
+  const fill = new THREE.PointLight(0x4ba3c3, 1.5, 150); fill.position.set(-18, 6, 10); S3.add(fill);
+  const rim  = new THREE.PointLight(0xc8a951, 0.7, 100); rim.position.set(0, -12, -18);  S3.add(rim);
+
+  // Grid — horizontal below model (beam axis Z is perpendicular to grid)
+  const grid = new THREE.GridHelper(80, 80, 0x0f2040, 0x06111e);
+  grid.position.y = -9;
+  S3.add(grid);
+
+  // Orbit controls
+  ctrl3 = new OrbitControls(C3, canvas);
+  ctrl3.enableDamping   = true;
+  ctrl3.dampingFactor   = 0.06;
+  ctrl3.minDistance     = 2;
+  ctrl3.maxDistance     = 80;
+  ctrl3.maxPolarAngle   = Math.PI * 0.85;
+  ctrl3.autoRotate      = true;
+  ctrl3.autoRotateSpeed = 0.5;
+  ctrl3.addEventListener('start', () => { ctrl3.autoRotate = false; });
+
+  // Click to inspect
+  ray3   = new THREE.Raycaster();
+  mouse3 = new THREE.Vector2();
+  canvas.addEventListener('click', onCanvas3Click);
+  window.addEventListener('resize', onResize3);
+
+  // Load
+  xFac3 = 0; xTgt3 = 0;
+  document.getElementById('explode-slider').value = 0;
+  document.getElementById('xpct').textContent = '0%';
+  loadGLB3(currentModel);
+
+  isRunning3 = true;
+  loop3();
+}
+
+function loop3() {
+  if (!isRunning3) return;
+  animId3 = requestAnimationFrame(loop3);
+  if (Math.abs(xFac3 - xTgt3) > 0.0005) { xFac3 += (xTgt3 - xFac3) * 0.08; applyXplode3(); }
+  ctrl3 && ctrl3.update();
+  R3 && S3 && C3 && R3.render(S3, C3);
+}
+
+function onResize3() {
+  if (!R3 || !C3) return;
+  const wrap = document.getElementById('canvas-wrap');
+  const W = wrap.offsetWidth, H = wrap.offsetHeight;
+  if (!W || !H) return;
+  R3.setSize(W, H); C3.aspect = W / H; C3.updateProjectionMatrix();
+}
+
+function loadGLB3(key) {
+  if (glbRoot3) { S3.remove(glbRoot3); glbRoot3 = null; }
+  topGroups3 = {}; xparts3 = []; xFac3 = 0; xTgt3 = 0;
+  compVis3 = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, true]));
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
+
+  const glbUrl = MODELS_PATH + CFG[key].file;
+  console.log('Loading GLB from:', glbUrl);
+  new GLTFLoader().load(
+    glbUrl,
+    gltf => {
+      const model = gltf.scene;
+      applyMaterials(model);
+      normaliseModel(model, 12);
+      topGroups3 = buildGroups(model);
+      xparts3    = buildXplodeParts(model, topGroups3);
+      glbRoot3   = model;
+      S3.add(model);
+
+      // Auto-frame camera
+      const box  = new THREE.Box3().setFromObject(model);
+      const sz   = box.getSize(new THREE.Vector3());
+      const dist = Math.max(sz.x, sz.y, sz.z) * 1.4;
+      C3.position.set(0, dist * 0.5, dist);
+      C3.lookAt(0, 0, 0);
+      ctrl3.target.set(0, 0, 0);
+      ctrl3.update();
+
+      // Hide loader
+      document.getElementById('vload').classList.add('hidden');
+    },
+    xhr => {
+      const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : 0;
+      document.getElementById('vload-txt').textContent = `Loading… ${pct}%`;
+    },
+    err => {
+      console.error('GLB error:', err);
+      document.getElementById('vload').classList.add('hidden');
+      document.getElementById('verr').style.display = 'block';
+      document.getElementById('verr-txt').textContent =
+        `Error: ${err?.message || err}\n\nFile: ${CFG[key].file}`;
+    }
+  );
+}
+
+function applyXplode3() {
+  xparts3.forEach(({ node, origin, dir }) => {
+    node.position.copy(origin).addScaledVector(dir, xFac3 * 30);
+  });
+}
+
+function applyCompVis3() {
+  for (const [comp, nodes] of Object.entries(topGroups3)) {
+    nodes.forEach(n => { n.visible = compVis3[comp] !== false; });
+  }
+}
+
+function onCanvas3Click(e) {
+  if (!glbRoot3) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  mouse3.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  mouse3.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+  ray3.setFromCamera(mouse3, C3);
+  const hits = ray3.intersectObject(glbRoot3, true);
+  if (!hits.length) { closeInfo(); return; }
+  let compKey = null, cur = hits[0].object;
+  outer: while (cur && cur !== glbRoot3) {
+    for (const [comp, nodes] of Object.entries(topGroups3)) {
+      if (nodes.includes(cur)) { compKey = comp; break outer; }
+    }
+    cur = cur.parent;
+  }
+  if (compKey && COMP_INFO[compKey]) openInfo(COMP_INFO[compKey]);
+}
+
+function stopViewer3() {
+  isRunning3 = false;
+  if (animId3) { cancelAnimationFrame(animId3); animId3 = null; }
+  window.removeEventListener('resize', onResize3);
+  document.getElementById('viewer-canvas').removeEventListener('click', onCanvas3Click);
+  ctrl3 && ctrl3.dispose(); R3 && R3.dispose();
+  R3 = S3 = C3 = ctrl3 = null; glbRoot3 = null; topGroups3 = {}; xparts3 = [];
+  document.getElementById('viewer').classList.remove('on');
+  document.getElementById('explode-slider').value = 0;
+  document.getElementById('xpct').textContent = '0%';
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
+  closeInfo();
+}
+
+// Exposed to HTML
+window.setExplode = v => { xTgt3 = v; xFac3 = v; applyXplode3(); document.getElementById('xpct').textContent = Math.round(v*100)+'%'; };
+window.resetView    = () => {
+  xTgt3 = 0; document.getElementById('explode-slider').value = 0; document.getElementById('xpct').textContent = '0%';
+  showAll();
+  if (ctrl3 && glbRoot3) {
+    ctrl3.autoRotate = true;
+    const sz = new THREE.Box3().setFromObject(glbRoot3).getSize(new THREE.Vector3());
+    const d  = Math.max(sz.x, sz.y, sz.z) * 1.9;
+    C3.position.set(0, d * 0.3, d); ctrl3.target.set(0,0,0); ctrl3.update();
+  }
+};
+window.toggleComp = btn => {
+  const c = btn.dataset.comp; compVis3[c] = !compVis3[c];
+  btn.classList.toggle('on', compVis3[c]); applyCompVis3();
+  if (compVis3[c] && COMP_INFO[c]) openInfo(COMP_INFO[c]);
+};
+window.showAll = () => {
+  Object.keys(compVis3).forEach(k => compVis3[k] = true);
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on')); applyCompVis3();
+};
+window.hideAll = () => {
+  Object.keys(compVis3).forEach(k => compVis3[k] = false);
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.remove('on')); applyCompVis3();
+};
+window.isolate = comp => {
+  Object.keys(compVis3).forEach(k => compVis3[k] = k === comp);
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.toggle('on', b.dataset.comp === comp));
+  applyCompVis3();
+};
+
+// ═══════════════════════════════════════════════════════════
+//  CAMERA OVERLAY  ──  getUserMedia + Three.js
+// ═══════════════════════════════════════════════════════════
+//
+//  Strategy:
+//    • <video id="ar-video">  receives the MediaStream (rear cam)
+//    • <canvas id="ar-canvas"> has alpha:true + clearColor(0,0,0,0)
+//      so the Three.js scene composites transparently over the video
+//    • OrbitControls on the canvas handles 1-finger drag (orbit)
+//      and 2-finger pinch (zoom) — Three.js handles touch natively
+//    • An opacity slider sets material.opacity on all mesh materials
+//      so the model fades in/out against the real-world background
+//    • "Flip" button toggles facingMode between rear/front camera
+//
+//  iOS Safari notes that make or break the feature:
+//    - <video> MUST have `playsinline` attribute (no fullscreen takeover)
+//    - `muted` is required for autoplay
+//    - Call video.play() explicitly after srcObject is set
+//    - getUserMedia works on Safari 14.3+ over HTTPS only
+//    - facingMode: { exact: 'environment' } fails on some iPhones in
+//      simulator; use { ideal: 'environment' } with a plain fallback
+// ═══════════════════════════════════════════════════════════
+
+async function startAR() {
+  // Reset state
+  arExploded = false; arXF = 0; arXT = 0;
+  document.getElementById('ar-xpl-btn').classList.remove('on');
+  document.getElementById('ar-card').classList.remove('show');
+  document.getElementById('ar-status').classList.remove('show');
+  document.getElementById('cam-err').style.display = 'none';
+  document.getElementById('ar-camload').style.display = 'block';
+  document.getElementById('ar-view').classList.add('on');
+
+  // ── Step 1: start camera stream ────────────────────────
+  const ok = await startCameraStream();
+  if (!ok) return;
+
+  // ── Step 2: set up Three.js renderer ──────────────────
+  setupARRenderer();
+
+  // ── Step 3: load model (async, shows while cam is live) 
+  loadGLBForAR();
+
+  // ── Step 4: animate ───────────────────────────────────
+  arRunning = true;
+  arAnimId = requestAnimationFrame(loopAR);
+
+  // Show status
+  document.getElementById('ar-camload').style.display = 'none';
+  document.getElementById('ar-status').textContent = '📷 Camera live';
+  document.getElementById('ar-status').classList.add('show');
+
+  window.addEventListener('resize', onARResize);
+}
+
+// ── Camera stream ─────────────────────────────────────────
+async function startCameraStream() {
+  // Stop any existing stream first
+  if (arStream) {
+    arStream.getTracks().forEach(t => t.stop());
+    arStream = null;
+  }
+
+  const video = document.getElementById('ar-video');
+
+  // iOS Safari requires these attributes to be on the element itself,
+  // not just passed as JS properties.  They're set in HTML but we
+  // reinforce them here for reliability.
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', '');
+  video.muted = true;
+
+  // Build constraints.  We try exact facingMode first (Android works),
+  // but fall back to `ideal` which is what iOS Safari needs.
+  const constraints = buildCamConstraints(arFacing, true);
+  
+  try {
+    arStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (e1) {
+    // Retry with ideal instead of exact
+    try {
+      arStream = await navigator.mediaDevices.getUserMedia(
+        buildCamConstraints(arFacing, false)
+      );
+    } catch (e2) {
+      // Last resort: any camera
+      try {
+        arStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      } catch (e3) {
+        showCamError(e3);
+        return false;
+      }
+    }
+  }
+
+  video.srcObject = arStream;
+  try {
+    await video.play();
+  } catch(e) {
+    // On iOS the play() call may fail if not triggered by user gesture.
+    // We already reached here from a button tap so it should be fine,
+    // but swallow the error gracefully.
+    console.warn('video.play() warning:', e);
+  }
+  return true;
+}
+
+function buildCamConstraints(facing, useExact) {
+  const facingConstraint = useExact
+    ? { exact: facing }
+    : { ideal: facing };
+  return {
+    video: {
+      facingMode: facingConstraint,
+      width:  { ideal: 1280 },
+      height: { ideal: 720 },
+    },
+    audio: false,
+  };
+}
+
+function showCamError(err) {
+  console.error('getUserMedia error:', err);
+  document.getElementById('ar-camload').style.display = 'none';
+  let msg = '⚠️ Camera access denied.\nPlease allow camera access and try again.';
+  if (err && err.name === 'NotFoundError') {
+    msg = '⚠️ No camera found on this device.';
+  } else if (err && err.name === 'NotAllowedError') {
+    msg = '⚠️ Camera permission denied.\n\nOn iPhone: Settings → Safari → Camera → Allow.\nThen reload this page.';
+  }
+  document.getElementById('cam-err-msg').textContent = msg;
+  document.getElementById('cam-err').style.display = 'block';
+}
+
+// ── Three.js renderer setup ───────────────────────────────
+function setupARRenderer() {
+  if (arRenderer) return; // already set up
+
+  const canvas = document.getElementById('ar-canvas');
+  const W = window.innerWidth, H = window.innerHeight;
+
+  arRenderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: true,                    // transparent background — video shows through
+    premultipliedAlpha: false,      // needed for correct alpha compositing
+  });
+  arRenderer.setClearColor(0x000000, 0); // fully transparent clear
+  arRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  arRenderer.setSize(W, H);
+  arRenderer.shadowMap.enabled = true;
+  arRenderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+  arRenderer.toneMapping       = THREE.ACESFilmicToneMapping;
+  arRenderer.toneMappingExposure = 1.3;
+  arRenderer.outputColorSpace  = THREE.SRGBColorSpace;
+
+  // Scene — no background, no fog (we want transparent)
+  arScene  = new THREE.Scene();
+
+  // Camera
+  arCamera = new THREE.PerspectiveCamera(45, W / H, 0.01, 1000);
+  arCamera.position.set(0, 4, 16);
+  arCamera.lookAt(0, 0, 0);
+
+  // Lights — generous ambient so model reads clearly against any background
+  arScene.add(new THREE.AmbientLight(0xffffff, 2.2));
+  const arSun = new THREE.DirectionalLight(0xfff8e0, 2.8);
+  arSun.position.set(8, 14, 8);
+  arSun.castShadow = true;
+  arSun.shadow.mapSize.set(1024, 1024);
+  arScene.add(arSun);
+  const arFill = new THREE.PointLight(0x4ba3c3, 1.2, 80);
+  arFill.position.set(-8, 4, 6);
+  arScene.add(arFill);
+  const arRim = new THREE.PointLight(0xffd070, 0.7, 60);
+  arRim.position.set(6, -6, -8);
+  arScene.add(arRim);
+
+  // OrbitControls — handles mouse drag, touch drag, and pinch-zoom natively
+  arCtrl = new OrbitControls(arCamera, canvas);
+  arCtrl.enableDamping   = true;
+  arCtrl.dampingFactor   = 0.08;
+  arCtrl.minDistance     = 2;
+  arCtrl.maxDistance     = 40;
+  arCtrl.autoRotate      = true;
+  arCtrl.autoRotateSpeed = 0.6;
+  arCtrl.enablePan       = false; // pan feels wrong in overlay mode
+  arCtrl.addEventListener('start', () => { arCtrl.autoRotate = false; });
+}
+
+// ── Load GLB for AR ───────────────────────────────────────
+function loadGLBForAR() {
+  if (arGlbRoot) return; // already loaded
+
+  new GLTFLoader().load(
+    MODELS_PATH + CFG['explosion'].file,
+    gltf => {
+      const model = gltf.scene;
+
+      // Normalise size (8 units looks good against real background)
+      model.rotation.set(MODEL_RX, MODEL_RY, MODEL_RZ);
+      const box  = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const sc   = 8 / Math.max(size.x, size.y, size.z, 0.001);
+      model.scale.setScalar(sc);
+      const box2 = new THREE.Box3().setFromObject(model);
+      model.position.sub(box2.getCenter(new THREE.Vector3()));
+
+      // Materials — enable transparency for the blend slider
+      const toRemove = [];
+      model.traverse(ch => {
+        if (ch.name === 'Cube') { toRemove.push(ch); return; }
+        if (!ch.isMesh) return;
+        ch.castShadow = ch.receiveShadow = true;
+        const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
+        mats.forEach(m => {
+          if (!m) return;
+          m.transparent = true;
+          m.opacity     = arBlend;
+          m.envMapIntensity = 1.0;
+          if (m.opacity < 0.2) m.opacity = 0.35;
+        });
+      });
+      toRemove.forEach(c => c.removeFromParent());
+
+      // Build explode parts
+      model.updateWorldMatrix(true, true);
+      const invMat = new THREE.Matrix4().copy(model.matrixWorld).invert();
+      const groups = buildGroups(model);
+      arXparts = [];
+      for (const nodes of Object.values(groups)) {
+        nodes.forEach(node => {
+          const b = new THREE.Box3().setFromObject(node);
+          if (b.isEmpty()) return;
+          const lc = b.getCenter(new THREE.Vector3()).applyMatrix4(invMat);
+          if (lc.length() < 1e-5) return;
+          arXparts.push({ node, origin: node.position.clone(), dir: lc.normalize() });
+        });
+      }
+
+      arGlbRoot = model;
+      arScene.add(model);
+
+      // Frame camera on model
+      const box3 = new THREE.Box3().setFromObject(model);
+      const sz   = box3.getSize(new THREE.Vector3());
+      const dist = Math.max(sz.x, sz.y, sz.z) * 1.6;
+      arCamera.position.set(0, dist * 0.35, dist);
+      arCamera.lookAt(0, 0, 0);
+      arCtrl.target.set(0, 0, 0);
+      arCtrl.update();
+    },
+    undefined,
+    err => console.error('AR GLB load error:', err)
+  );
+}
+
+// ── Render loop ───────────────────────────────────────────
+function loopAR() {
+  if (!arRunning) return;
+  arAnimId = requestAnimationFrame(loopAR);
+
+  // Smooth explode
+  if (Math.abs(arXF - arXT) > 0.0005) {
+    arXF += (arXT - arXF) * 0.1;
+    applyARXplode();
+  }
+
+  arCtrl && arCtrl.update();
+
+  // Render with transparent background so <video> shows through
+  if (arRenderer && arScene && arCamera) {
+    arRenderer.render(arScene, arCamera);
+  }
+}
+
+function applyARXplode() {
+  arXparts.forEach(({ node, origin, dir }) => {
+    node.position.copy(origin).addScaledVector(dir, arXF * 30);
+  });
+}
+
+function onARResize() {
+  if (!arRenderer || !arCamera) return;
+  const W = window.innerWidth, H = window.innerHeight;
+  arRenderer.setSize(W, H);
+  arCamera.aspect = W / H;
+  arCamera.updateProjectionMatrix();
+}
+
+// ── Stop AR ───────────────────────────────────────────────
+function stopAR() {
+  arRunning = false;
+  if (arAnimId) { cancelAnimationFrame(arAnimId); arAnimId = null; }
+  window.removeEventListener('resize', onARResize);
+
+  // Stop camera tracks
+  if (arStream) {
+    arStream.getTracks().forEach(t => t.stop());
+    arStream = null;
+  }
+  const video = document.getElementById('ar-video');
+  video.srcObject = null;
+
+  // Dispose renderer + controls (but keep arGlbRoot loaded for quick re-entry)
+  if (arCtrl)     { arCtrl.dispose(); arCtrl = null; }
+  if (arRenderer) { arRenderer.dispose(); arRenderer = null; }
+  arScene = arCamera = null;
+
+  document.getElementById('ar-view').classList.remove('on');
+  document.getElementById('ar-status').classList.remove('show');
+  document.getElementById('ar-card').classList.remove('show');
+  arXF = 0; arXT = 0; arExploded = false;
+  document.getElementById('ar-xpl-btn').classList.remove('on');
+
+  showLanding();
+}
+
+// ── Camera flip ───────────────────────────────────────────
+window.flipCamera = async function() {
+  arFacing = arFacing === 'environment' ? 'user' : 'environment';
+  await startCameraStream();
+};
+
+// ── Retry after permission error ──────────────────────────
+window.retryCamera = async function() {
+  document.getElementById('cam-err').style.display = 'none';
+  document.getElementById('ar-camload').style.display = 'block';
+  const ok = await startCameraStream();
+  if (ok) {
+    document.getElementById('ar-camload').style.display = 'none';
+    document.getElementById('ar-status').textContent = '📷 Camera live';
+    document.getElementById('ar-status').classList.add('show');
+    if (!arRenderer) {
+      setupARRenderer();
+      loadGLBForAR();
+      arRunning = true;
+      arAnimId = requestAnimationFrame(loopAR);
+      window.addEventListener('resize', onARResize);
+    }
+  }
+};
+
+// ── Blend slider ──────────────────────────────────────────
+window.setARBlend = function(val) {
+  arBlend = val / 100;
+  document.getElementById('ar-blend-val').textContent = val + '%';
+  if (!arGlbRoot) return;
+  arGlbRoot.traverse(ch => {
+    if (!ch.isMesh) return;
+    const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
+    mats.forEach(m => { if (m) m.opacity = arBlend; });
+  });
+};
+
+// ── AR toolbar handlers ───────────────────────────────────
+window.toggleARExplode = () => {
+  arExploded = !arExploded;
+  arXT = arExploded ? 1 : 0;
+  document.getElementById('ar-xpl-btn').classList.toggle('on', arExploded);
+};
+
+window.showARInfo = () => document.getElementById('ar-card').classList.add('show');
+
+window.resetARView = () => {
+  arExploded = false; arXT = 0;
+  document.getElementById('ar-xpl-btn').classList.remove('on');
+  document.getElementById('ar-card').classList.remove('show');
+  if (arCtrl) {
+    arCtrl.autoRotate = true;
+    arCtrl.target.set(0, 0, 0);
+    if (arGlbRoot) {
+      const sz = new THREE.Box3().setFromObject(arGlbRoot).getSize(new THREE.Vector3());
+      const d  = Math.max(sz.x, sz.y, sz.z) * 1.6;
+      arCamera.position.set(0, d * 0.35, d);
+      arCtrl.update();
+    }
+  }
+};
+
+
+</script>
+</body>
+</html>#loading-screen p{font-size:12px;color:rgba(255,255,255,.35);letter-spacing:.08em}
+
+/* ─── LANDING ──────────────────────────────────────────── */
+#landing{
+  position:fixed;inset:0;z-index:1000;
+  background:radial-gradient(ellipse at 30% 15%,#002d5a 0%,#000e20 50%,#000 100%);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:2rem 1.5rem;overflow-y:auto;transition:opacity .4s ease;
+}
+#landing.visible{display:flex}
+#landing.hidden{opacity:0;pointer-events:none}
+.wordmark{font-family:var(--serif);font-size:9px;letter-spacing:.35em;color:var(--gold);
+  text-transform:uppercase;opacity:.65;margin-bottom:1.4rem;text-align:center}
+.hero-title{font-family:var(--serif);font-size:clamp(1.4rem,5vw,2rem);
+  font-weight:normal;color:#fff;text-align:center;line-height:1.3;margin-bottom:.45rem}
+.hero-sub{font-size:11.5px;color:rgba(75,163,195,.8);text-align:center;
+  line-height:1.8;margin-bottom:1.75rem;max-width:360px}
+.mode-tabs{display:flex;gap:.5rem;width:100%;max-width:440px;margin-bottom:1rem}
+.mode-tab{
+  flex:1;padding:.55rem .4rem;border-radius:10px;
+  border:1px solid rgba(255,255,255,.1);background:transparent;
+  color:rgba(255,255,255,.5);font-size:11px;font-family:var(--sans);
+  cursor:pointer;transition:all .2s;text-align:center;
+}
+.mode-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.model-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;
+  width:100%;max-width:440px;margin-bottom:1.5rem}
+.model-btn{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+  border-radius:12px;padding:.85rem .75rem;cursor:pointer;transition:all .2s;
+  text-align:left;color:#fff;
+}
+.model-btn.on{border-color:var(--accent);background:rgba(75,163,195,.07)}
+.model-btn .icon{font-size:1.3rem;margin-bottom:.35rem;display:block}
+.model-btn .lbl{font-size:11px;font-weight:600;display:block;margin-bottom:2px}
+.model-btn .desc{font-size:10px;color:rgba(255,255,255,.32);display:block;line-height:1.4}
+#ar-note{
+  width:100%;max-width:440px;margin-bottom:1.2rem;
+  background:rgba(200,169,81,.08);border:1px solid rgba(200,169,81,.22);
+  border-radius:10px;padding:.55rem .85rem;font-size:10.5px;
+  color:rgba(200,169,81,.85);line-height:1.6;display:none;
+}
+#ar-note.show{display:block}
+.launch-btn{
+  background:var(--accent);color:#fff;border:none;border-radius:50px;
+  padding:.9rem 2.5rem;font-size:14px;font-weight:600;cursor:pointer;
+  letter-spacing:.04em;width:100%;max-width:300px;
+  animation:glow 2.5s ease-in-out infinite;transition:transform .15s;
+}
+.launch-btn:active{transform:scale(.97)}
+@keyframes glow{0%,100%{box-shadow:0 0 16px rgba(75,163,195,.3)}50%{box-shadow:0 0 36px rgba(75,163,195,.65)}}
+.info-foot{position:absolute;bottom:1rem;left:0;right:0;text-align:center;
+  font-size:10px;color:rgba(255,255,255,.15);line-height:1.7}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.f1{animation:fadeUp .5s ease forwards}
+.f2{animation:fadeUp .5s .12s ease both}
+.f3{animation:fadeUp .5s .24s ease both}
+.f4{animation:fadeUp .5s .36s ease both}
+.f5{animation:fadeUp .5s .48s ease both}
+
+/* ─── 3D VIEWER ─────────────────────────────────────────── */
+#viewer{
+  position:fixed;inset:0;z-index:200;
+  background:radial-gradient(ellipse at 20% 15%,#001c38 0%,#000410 75%);
+  display:none;flex-direction:column;
+}
+#viewer.on{display:flex}
+#viewer-header{
+  flex-shrink:0;padding:.7rem 1rem .6rem;
+  background:rgba(0,12,30,.95);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  backdrop-filter:blur(10px);
+}
+#viewer-header h2{font-family:var(--serif);font-size:13px;color:#fff;
+  font-weight:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbtns{display:flex;gap:.35rem;flex-shrink:0}
+.hbtn{
+  background:rgba(75,163,195,.1);border:1px solid rgba(75,163,195,.28);
+  border-radius:8px;color:var(--accent);padding:.38rem .75rem;
+  font-size:11px;font-family:var(--sans);cursor:pointer;transition:all .15s;
+}
+.hbtn:hover{background:rgba(75,163,195,.2)}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;min-height:0}
+#viewer-canvas{width:100%;height:100%;touch-action:none;cursor:grab;display:block}
+#viewer-canvas:active{cursor:grabbing}
+#vload{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;z-index:10}
+#vload.hidden{display:none}
+#vload .ring{margin:0 auto .5rem}
+#vload p{font-size:11px;color:rgba(255,255,255,.4)}
+#verr{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(180,30,30,.12);border:1px solid rgba(200,60,60,.35);
+  border-radius:12px;padding:1.2rem 1.5rem;text-align:center;
+  pointer-events:none;z-index:10;display:none;max-width:280px;
+}
+#verr p{font-size:11.5px;color:rgba(255,170,170,.8);line-height:1.65;white-space:pre-line}
+#info-panel{
+  position:absolute;bottom:0;left:0;right:0;
+  background:var(--panel);backdrop-filter:blur(14px);
+  border-top:1px solid var(--border);padding:.85rem 1rem 1.1rem;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);
+  z-index:20;max-height:55%;overflow-y:auto;
+}
+#info-panel.show{transform:translateY(0)}
+#info-panel h3{font-family:var(--serif);font-size:13px;color:var(--gold);font-weight:normal;margin-bottom:.35rem}
+.ip-desc{font-size:11px;color:rgba(255,255,255,.6);line-height:1.65;margin-bottom:.55rem}
+.spec-row{display:flex;justify-content:space-between;padding:.2rem 0;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:10.5px}
+.spec-row:last-child{border-bottom:none}
+.sk{color:rgba(255,255,255,.32)}.sv{color:var(--accent);font-weight:600}
+#info-close{float:right;background:none;border:none;color:rgba(255,255,255,.28);cursor:pointer;font-size:16px;padding:0 0 0 .5rem}
+#viewer-footer{
+  flex-shrink:0;background:rgba(0,8,22,.96);border-top:1px solid var(--border);
+  backdrop-filter:blur(10px);padding:.6rem .9rem .9rem;max-height:42vh;overflow-y:auto;
+}
+#viewer-footer::-webkit-scrollbar{width:2px}
+#viewer-footer::-webkit-scrollbar-thumb{background:var(--accent);border-radius:2px}
+.ctrl-section{margin-bottom:.6rem}
+.ctrl-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(255,255,255,.25);margin-bottom:.4rem;display:block}
+.slider-row{display:flex;align-items:center;gap:.6rem}
+.slbl{font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap}
+#explode-slider{
+  flex:1;-webkit-appearance:none;height:3px;
+  background:rgba(255,255,255,.1);border-radius:2px;outline:none;cursor:pointer;
+}
+#explode-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:15px;height:15px;
+  background:var(--accent);border-radius:50%;cursor:pointer;
+  box-shadow:0 0 6px rgba(75,163,195,.5);
+}
+#xpct{font-size:10px;color:var(--accent);font-weight:600;min-width:2.5rem;text-align:right}
+.comp-btns-wrap{display:flex;gap:.32rem;flex-wrap:wrap}
+.cbtn{
+  padding:.28rem .62rem;border-radius:16px;border:1px solid rgba(255,255,255,.13);
+  background:rgba(255,255,255,.04);color:rgba(255,255,255,.58);
+  font-size:10px;font-family:var(--sans);cursor:pointer;transition:all .15s;
+}
+.cbtn.on{background:rgba(75,163,195,.18);border-color:rgba(75,163,195,.45);color:rgba(255,255,255,.9)}
+.cbtn:not(.on){background:rgba(255,255,255,.02);border-color:rgba(255,255,255,.07);
+  color:rgba(255,255,255,.22);text-decoration:line-through}
+.qbtns{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.38rem}
+.qbtn{
+  padding:.25rem .6rem;border-radius:13px;border:1px solid rgba(255,255,255,.09);
+  background:rgba(255,255,255,.03);color:rgba(255,255,255,.42);
+  font-size:9px;font-family:var(--sans);cursor:pointer;transition:all .15s;
+}
+.qbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ─── AR / CAMERA OVERLAY ─────────────────────────────────
+   Architecture:
+     #ar-view            ← fixed full-screen container
+       #ar-video         ← getUserMedia live camera feed (z:0)
+       #ar-canvas        ← Three.js, alpha:true, drawn on top (z:1)
+       #ar-ui            ← HUD controls (z:10)
+
+   Works on: iOS Safari 14+, Chrome Android, Firefox, Desktop Chrome/FF.
+   Requires HTTPS (GitHub Pages provides this).
+   No WebXR. No markers. No external AR libraries.
+──────────────────────────────────────────────────────────── */
+#ar-view{
+  position:fixed;inset:0;z-index:500;
+  background:#000;          /* fallback while camera starts */
+  display:none;overflow:hidden;
+}
+#ar-view.on{display:block}
+
+/* Live camera video — fills viewport, no mirroring (rear cam) */
+#ar-video{
+  position:absolute;top:0;left:0;
+  width:100%;height:100%;
+  object-fit:cover;
+  z-index:0;
+  /* iOS Safari: transform avoids a rendering glitch on some devices */
+  transform:translateZ(0);
+  -webkit-transform:translateZ(0);
+}
+
+/* Three.js canvas — transparent so video shows through */
+#ar-canvas{
+  position:absolute;top:0;left:0;
+  width:100%;height:100%;
+  z-index:1;
+  background:transparent !important;
+  /* canvas receives pointer events for orbit/pinch controls */
+  touch-action:none;
 }
 #ar-ui{position:absolute;inset:0;z-index:10;pointer-events:none}
 #ar-header{
