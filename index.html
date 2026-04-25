@@ -219,22 +219,37 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   width:100%;height:100%;
   z-index:1;
   background:transparent !important;
-  /* canvas receives pointer events for orbit/pinch controls */
+  /* OrbitControls binds its own JS listeners directly to the canvas element,
+     so pointer-events:none here does NOT break orbit/pinch — it just stops
+     the CSS layer from intercepting taps meant for UI buttons above it. */
+  pointer-events:none;
   touch-action:none;
 }
 #ar-ui{position:absolute;inset:0;z-index:10;pointer-events:none}
 #ar-header{
-  position:absolute;top:0;left:0;right:0;pointer-events:all;
+  position:absolute;top:0;left:0;right:0;
+  /* pointer-events:none — this div spans the full top bar width and would otherwise
+     swallow taps meant for #ar-back. The text content is purely visual, not tappable. */
+  pointer-events:none;
   padding:.85rem 1rem .7rem;
   background:linear-gradient(to bottom,rgba(0,16,40,.88) 0%,transparent 100%);
 }
 #ar-header h1{font-family:var(--serif);font-size:14px;color:#fff;font-weight:normal}
 #ar-header p{font-size:11px;color:var(--accent);margin-top:2px}
 #ar-back{
-  position:absolute;top:.85rem;right:1rem;pointer-events:all;
+  position:absolute;top:.85rem;right:1rem;
+  /* Explicit z-index guarantees this sits above the canvas and header gradient */
+  z-index:100;
+  pointer-events:all;
+  /* Enlarged tap target — min 44×44 pt as per Apple HIG */
+  min-width:44px;min-height:44px;
+  display:flex;align-items:center;justify-content:center;
   background:rgba(0,16,40,.85);border:1px solid rgba(75,163,195,.4);
   border-radius:9px;color:var(--accent);padding:.42rem .85rem;
   font-size:11.5px;font-family:var(--sans);cursor:pointer;backdrop-filter:blur(8px);
+  /* Prevent any ancestor touch-action from swallowing this button's taps */
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:rgba(75,163,195,.25);
 }
 #scan-hint{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);text-align:center;
