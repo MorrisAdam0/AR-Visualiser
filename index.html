@@ -61,6 +61,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 .mode-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .model-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;
   width:100%;max-width:440px;margin-bottom:1.5rem}
+.model-btn.nafion-btn.on{border-color:#44cc99;background:rgba(68,204,153,.08)}
 .model-btn{
   background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
   border-radius:12px;padding:.85rem .75rem;cursor:pointer;transition:all .2s;
@@ -183,6 +184,39 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   font-size:9px;font-family:var(--sans);cursor:pointer;transition:all .15s;
 }
 .qbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ─── NAFION MODE ──────────────────────────────────────────
+   When viewing the Nafion model, the explode slider and
+   component toggles are hidden (not applicable to single-mesh
+   chemical structure). A pinned info panel shows instead.
+────────────────────────────────────────────────────────────── */
+#viewer.nafion-mode .ctrl-section{display:none}
+#viewer.nafion-mode #viewer-footer{padding:.5rem .9rem .6rem}
+#nafion-panel{
+  position:absolute;bottom:0;left:0;right:0;
+  background:var(--panel);backdrop-filter:blur(14px);
+  border-top:2px solid rgba(68,204,153,.35);
+  padding:.8rem 1rem 1rem;z-index:20;
+  max-height:52%;overflow-y:auto;
+  display:none;
+  transition:max-height .3s ease;
+}
+#nafion-panel.collapsed{max-height:2.6rem;overflow:hidden}
+#nafion-panel-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  cursor:pointer;margin-bottom:.35rem;
+}
+#nafion-panel-hdr h3{
+  font-family:var(--serif);font-size:12px;color:#44cc99;
+  font-weight:normal;flex:1;
+}
+#nafion-panel-hdr .arr{font-size:10px;opacity:.5;transition:transform .25s;flex-shrink:0}
+#nafion-panel.collapsed .arr{transform:rotate(180deg)}
+#nafion-panel .ip-desc{font-size:10.5px}
+/* Atom colour legend */
+.atom-legend{display:flex;flex-wrap:wrap;gap:.3rem .8rem;margin:.5rem 0}
+.atom-dot{display:inline-flex;align-items:center;gap:.3rem;font-size:10px;color:rgba(255,255,255,.6)}
+.atom-dot span{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
 
 /* ─── AR / CAMERA OVERLAY ─────────────────────────────────
    Architecture:
@@ -368,6 +402,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
       <span class="lbl">Complete Assembly</span>
       <span class="desc">Full assembled PEFC stack</span>
     </button>
+    <button class="model-btn nafion-btn" onclick="selectModel(this,'nafion')" data-m="nafion"
+            style="grid-column:1/-1">
+      <span class="icon">🧪</span>
+      <span class="lbl">Nafion PFSA Structure</span>
+      <span class="desc">Stylised monomer unit · CPK atom colours</span>
+    </button>
   </div>
 
   <div id="ar-note" class="f4">
@@ -399,6 +439,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
       <h3 id="ip-title"></h3>
       <p class="ip-desc" id="ip-desc"></p>
       <div id="ip-specs"></div>
+    </div>
+    <!-- Nafion info panel — always visible in nafion mode -->
+    <div id="nafion-panel">
+      <div id="nafion-panel-hdr" onclick="toggleNafionPanel()">
+        <h3>Nafion PFSA — Monomer Unit</h3>
+        <span class="arr">▲</span>
+      </div>
+      <p class="ip-desc" id="nafion-desc"></p>
+      <div class="atom-legend">
+        <span class="atom-dot"><span style="background:#404040"></span>C — Carbon</span>
+        <span class="atom-dot"><span style="background:#90e050"></span>F — Fluorine</span>
+        <span class="atom-dot"><span style="background:#ff3333"></span>O — Oxygen</span>
+        <span class="atom-dot"><span style="background:#ffcc00"></span>S — Sulfur</span>
+        <span class="atom-dot"><span style="background:#ffffff;border:1px solid rgba(255,255,255,.3)"></span>H — Hydrogen</span>
+      </div>
+      <div id="nafion-specs"></div>
     </div>
   </div>
   <div id="viewer-footer">
@@ -537,8 +593,28 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 const MODELS_PATH = './models/';
 
 const CFG = {
-  explosion: { name: 'Exploded View',     file: 'pefc-explosion.glb' },
-  complete:  { name: 'Complete Assembly', file: 'pefc-complete.glb'  },
+  explosion: { name: 'Exploded View',     file: 'pefc-explosion.glb'            },
+  complete:  { name: 'Complete Assembly', file: 'pefc-complete.glb'             },
+  nafion:    { name: 'Nafion Structure',  file: 'nafion_stylised_structure.glb' },
+};
+
+// Nafion monomer info — shown in the dedicated info panel
+const NAFION_INFO = {
+  title: 'Nafion PFSA — Monomer Unit',
+  desc:  'One repeat unit of Nafion perfluorosulfonic acid (PFSA) ionomer. ' +
+         'The polytetrafluoroethylene (PTFE) backbone (grey C, green F) carries ' +
+         'a vinyl-ether side-chain terminating in a sulfonic acid group (−SO₃H). ' +
+         'Proton conduction occurs via the hydrated sulfonate channels. ' +
+         'Colours follow CPK convention.',
+  specs: [
+    ['Formula',      'C₇HF₁₃O₅S  (per monomer)'],
+    ['EW',           '1100 g/eq (Nafion 117)'],
+    ['Thickness',    '183 μm (Nafion 117)'],
+    ['Conductivity', '~0.1 S cm⁻¹ (hydrated)'],
+    ['Tg',           '~110 °C'],
+    ['Role',         'Proton-exchange membrane'],
+    ['Colours',      'C=grey  F=green  O=red  S=yellow  H=white'],
+  ]
 };
 
 // ── ORIENTATION ─────────────────────────────────────────
@@ -661,19 +737,44 @@ function normaliseModel(model, targetSize) {
 }
 
 function applyMaterials(model) {
+  // Fix PEFC model materials so colours read correctly under Three.js lighting.
+  // Fusion 360 exports all roughness as ~0.55 and metalness as 0, which makes
+  // aluminium look flat-white and stainless look identical to PTFE.
+  // We detect by material name and apply physically correct values.
+  const metalRoughMap = {
+    'Aluminum':    { metalness: 0.85, roughness: 0.20 },
+    'Acrylic':     { metalness: 0.0,  roughness: 0.05, transparent: true, opacity: 0.45 },
+    'Stainless':   { metalness: 0.90, roughness: 0.18 },
+    'Nylon':       { metalness: 0.0,  roughness: 0.65 },
+    'Plastic':     { metalness: 0.0,  roughness: 0.60 },
+    'Opaque(130':  { metalness: 0.0,  roughness: 0.50 },   // PTFE-ish grey
+    'Opaque(229':  { metalness: 0.0,  roughness: 0.55 },   // tan/nylon
+    'Opaque(160':  { metalness: 0.05, roughness: 0.50 },   // light grey
+  };
   const toRemove = [];
   model.traverse(ch => {
     if (ch.name === 'Cube') { toRemove.push(ch); return; }
     if (!ch.isMesh) return;
     ch.castShadow = ch.receiveShadow = true;
     const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
-    mats.forEach(m => { 
-      if (m) {
-        m.envMapIntensity = 1.0;
-        // Make sure highly transparent parts (like acrylic pucks) are visible
-        if (m.transparent && m.opacity < 0.2) m.opacity = 0.35;
-        if (m.transmission > 0) m.transmission = Math.min(m.transmission, 0.9);
+    mats.forEach(m => {
+      if (!m) return;
+      m.envMapIntensity = 1.5;
+      // Apply better PBR values based on material name
+      const name = m.name || '';
+      for (const [key, props] of Object.entries(metalRoughMap)) {
+        if (name.includes(key)) {
+          m.metalness  = props.metalness;
+          m.roughness  = props.roughness;
+          if (props.transparent) {
+            m.transparent = true;
+            m.opacity     = props.opacity;
+          }
+          break;
+        }
       }
+      // Ensure transparent parts are visible
+      if (m.transparent && m.opacity < 0.2) m.opacity = 0.35;
     });
   });
   toRemove.forEach(ch => ch.removeFromParent());
@@ -822,6 +923,10 @@ function loadGLB3(key) {
   topGroups3 = {}; xparts3 = []; xFac3 = 0; xTgt3 = 0;
   compVis3 = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, true]));
   document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
+  // Clear nafion-specific UI state
+  document.getElementById('viewer').classList.remove('nafion-mode');
+  document.getElementById('nafion-panel').style.display = 'none';
+  document.getElementById('nafion-panel').classList.remove('collapsed');
 
   const glbUrl = MODELS_PATH + CFG[key].file;
   console.log('Loading GLB from:', glbUrl);
@@ -829,6 +934,68 @@ function loadGLB3(key) {
     glbUrl,
     gltf => {
       const model = gltf.scene;
+
+      if (key === 'nafion') {
+        // ── Nafion model ────────────────────────────────────────────────────
+        // The GLB has per-vertex COLOR_0 data (CPK colours) that we wrote
+        // using Python. Three.js reads COLOR_0 automatically via GLTFLoader.
+        // We just need to ensure vertexColors is enabled on each material
+        // and compute normals (trimesh doesn't export them).
+
+        // Rotate so chain runs horizontally (the file's Y-elongated chain)
+        model.rotation.set(0, 0, -Math.PI / 2);
+
+        // Scale & centre
+        const nb  = new THREE.Box3().setFromObject(model);
+        const nsz = nb.getSize(new THREE.Vector3());
+        const nsc = 12 / Math.max(nsz.x, nsz.y, nsz.z, 0.001);
+        model.scale.setScalar(nsc);
+        const nb2 = new THREE.Box3().setFromObject(model);
+        model.position.sub(nb2.getCenter(new THREE.Vector3()));
+
+        model.traverse(ch => {
+          if (!ch.isMesh) return;
+          // Compute normals — trimesh doesn't export them
+          ch.geometry.computeVertexNormals();
+          // Enable vertex colours — this is the critical line that makes
+          // the CPK colors embedded in COLOR_0 actually appear
+          if (ch.geometry.hasAttribute('color')) {
+            ch.material = new THREE.MeshPhysicalMaterial({
+              vertexColors:    true,
+              metalness:       0.08,
+              roughness:       0.35,
+              envMapIntensity: 1.2,
+              side:            THREE.DoubleSide,
+            });
+          }
+          ch.castShadow = ch.receiveShadow = true;
+        });
+
+        glbRoot3 = model;
+        S3.add(model);
+
+        // Frame camera
+        const nb3  = new THREE.Box3().setFromObject(model);
+        const nsz3 = nb3.getSize(new THREE.Vector3());
+        const nd   = Math.max(nsz3.x, nsz3.y, nsz3.z) * 1.6;
+        C3.position.set(0, nd * 0.2, nd);
+        C3.lookAt(0, 0, 0);
+        ctrl3.target.set(0, 0, 0);
+        ctrl3.update();
+
+        // Switch UI into nafion mode
+        document.getElementById('viewer').classList.add('nafion-mode');
+        document.getElementById('nafion-panel').style.display = 'block';
+        document.getElementById('nafion-desc').textContent = NAFION_INFO.desc;
+        document.getElementById('nafion-specs').innerHTML = NAFION_INFO.specs.map(s =>
+          `<div class="spec-row"><span class="sk">${s[0]}</span><span class="sv">${s[1]}</span></div>`
+        ).join('');
+
+        document.getElementById('vload').classList.add('hidden');
+        return;   // skip standard PEFC path
+      }
+
+      // ── Standard PEFC models ──────────────────────────────────────────────
       applyMaterials(model);
       normaliseModel(model, 12);
       topGroups3 = buildGroups(model);
@@ -900,6 +1067,9 @@ function stopViewer3() {
   ctrl3 && ctrl3.dispose(); R3 && R3.dispose();
   R3 = S3 = C3 = ctrl3 = null; glbRoot3 = null; topGroups3 = {}; xparts3 = [];
   document.getElementById('viewer').classList.remove('on');
+  document.getElementById('viewer').classList.remove('nafion-mode');
+  document.getElementById('nafion-panel').style.display = 'none';
+  document.getElementById('nafion-panel').classList.remove('collapsed');
   document.getElementById('explode-slider').value = 0;
   document.getElementById('xpct').textContent = '0%';
   document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
@@ -1317,6 +1487,11 @@ window.resetARView = () => {
   }
 };
 
+
+// ── Nafion panel collapse toggle ─────────────────────────────────────────────
+window.toggleNafionPanel = () => {
+  document.getElementById('nafion-panel').classList.toggle('collapsed');
+};
 
 </script>
 </body>
