@@ -61,8 +61,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 .mode-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .model-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;
   width:100%;max-width:440px;margin-bottom:1.5rem}
-/* Nafion card gets a distinct teal accent */
-.model-btn.nafion-btn.on{border-color:#44cc99;background:rgba(68,204,153,.08)}
 .model-btn{
   background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
   border-radius:12px;padding:.85rem .75rem;cursor:pointer;transition:all .2s;
@@ -152,29 +150,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   flex-shrink:0;background:rgba(0,8,22,.96);border-top:1px solid var(--border);
   backdrop-filter:blur(10px);padding:.6rem .9rem .9rem;max-height:42vh;overflow-y:auto;
 }
-/* In nafion mode the explode and component sections are not applicable */
-#viewer.nafion-mode #viewer-footer .ctrl-section{display:none}
-#viewer.nafion-mode #viewer-footer{padding:.6rem .9rem .7rem}
-/* Nafion info panel — always shown at bottom of canvas */
-#nafion-panel{
-  position:absolute;bottom:0;left:0;right:0;
-  background:var(--panel);backdrop-filter:blur(14px);
-  border-top:1px solid rgba(68,204,153,.25);
-  padding:.85rem 1rem 1rem;
-  transform:translateY(0);          /* always visible */
-  z-index:20;overflow-y:auto;
-  max-height:52%;
-  transition:max-height .3s ease;
-}
-#nafion-panel.collapsed{max-height:2.8rem;overflow:hidden}
-#nafion-panel h3{
-  font-family:var(--serif);font-size:13px;color:#44cc99;
-  font-weight:normal;margin-bottom:.35rem;
-  display:flex;justify-content:space-between;align-items:center;cursor:pointer;
-}
-#nafion-panel h3 .toggle-arrow{font-size:11px;opacity:.5;transition:transform .25s}
-#nafion-panel.collapsed h3 .toggle-arrow{transform:rotate(180deg)}
-#nafion-panel .ip-desc{font-size:11px;color:rgba(255,255,255,.6);line-height:1.65;margin-bottom:.55rem}
 #viewer-footer::-webkit-scrollbar{width:2px}
 #viewer-footer::-webkit-scrollbar-thumb{background:var(--accent);border-radius:2px}
 .ctrl-section{margin-bottom:.6rem}
@@ -209,19 +184,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 }
 .qbtn:hover{border-color:var(--accent);color:var(--accent)}
 
-/* ─── AR VIEWER ─────────────────────────────────────────── */
-#ar-view{position:fixed;inset:0;z-index:500;background:#000;display:none}
-#ar-view.on{display:block}
-/* AR.js injects video — position it to fill screen */
-#ar-view video{
-  position:absolute!important;inset:0!important;
-  width:100%!important;height:100%!important;
-  object-fit:cover!important;z-index:0!important;
+/* ─── AR / CAMERA OVERLAY ─────────────────────────────────
+   Architecture:
+     #ar-view            ← fixed full-screen container
+       #ar-video         ← getUserMedia live camera feed (z:0)
+       #ar-canvas        ← Three.js, alpha:true, drawn on top (z:1)
+       #ar-ui            ← HUD controls (z:10)
+
+   Works on: iOS Safari 14+, Chrome Android, Firefox, Desktop Chrome/FF.
+   Requires HTTPS (GitHub Pages provides this).
+   No WebXR. No markers. No external AR libraries.
+──────────────────────────────────────────────────────────── */
+#ar-view{
+  position:fixed;inset:0;z-index:500;
+  background:#000;          /* fallback while camera starts */
+  display:none;overflow:hidden;
 }
+#ar-view.on{display:block}
+
+/* Live camera video — fills viewport, no mirroring (rear cam) */
+#ar-video{
+  position:absolute;top:0;left:0;
+  width:100%;height:100%;
+  object-fit:cover;
+  z-index:0;
+  /* iOS Safari: transform avoids a rendering glitch on some devices */
+  transform:translateZ(0);
+  -webkit-transform:translateZ(0);
+}
+
+/* Three.js canvas — transparent so video shows through */
 #ar-canvas{
-  position:absolute!important;inset:0!important;
-  width:100%!important;height:100%!important;
-  z-index:1;background:transparent!important;pointer-events:none;
+  position:absolute;top:0;left:0;
+  width:100%;height:100%;
+  z-index:1;
+  background:transparent !important;
+  /* canvas receives pointer events for orbit/pinch controls */
+  touch-action:none;
 }
 #ar-ui{position:absolute;inset:0;z-index:10;pointer-events:none}
 #ar-header{
@@ -294,9 +293,49 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 .ar-btn:active,.ar-btn.on{background:rgba(75,163,195,.28);border-color:var(--accent)}
 #cam-err{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  text-align:center;padding:1.5rem;max-width:280px;z-index:30;display:none;
+  text-align:center;padding:1.5rem;max-width:300px;z-index:30;display:none;
 }
-#cam-err p{font-size:12px;color:rgba(255,200,200,.8);line-height:1.7}
+#cam-err .err-box{
+  background:rgba(180,30,30,.18);border:1px solid rgba(200,60,60,.4);
+  border-radius:14px;padding:1.2rem 1.4rem;
+}
+#cam-err p{font-size:12px;color:rgba(255,180,180,.9);line-height:1.75;margin-bottom:.8rem}
+#cam-err button{
+  background:var(--accent);color:#fff;border:none;border-radius:8px;
+  padding:.45rem 1.2rem;font-size:12px;cursor:pointer;font-family:var(--sans);
+}
+/* Camera starting spinner */
+#ar-camload{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;z-index:5;display:none;
+}
+#ar-camload .ring{margin:0 auto .6rem}
+#ar-camload p{font-size:11px;color:rgba(255,255,255,.5)}
+/* Opacity / blend slider */
+#ar-blend-row{
+  position:absolute;bottom:5.5rem;left:1rem;right:1rem;pointer-events:all;
+  display:flex;align-items:center;gap:.7rem;
+  background:rgba(0,0,0,.35);border-radius:10px;padding:.4rem .75rem;
+  backdrop-filter:blur(8px);
+}
+#ar-blend-row label{font-size:10px;color:rgba(255,255,255,.5);white-space:nowrap;flex-shrink:0}
+#ar-blend-slider{
+  flex:1;-webkit-appearance:none;height:3px;
+  background:rgba(255,255,255,.2);border-radius:2px;outline:none;cursor:pointer;
+}
+#ar-blend-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;
+  background:var(--accent);border-radius:50%;
+  box-shadow:0 0 6px rgba(75,163,195,.6);
+}
+#ar-blend-val{font-size:10px;color:var(--accent);font-weight:600;min-width:2.5rem;text-align:right;flex-shrink:0}
+/* Flip-cam button */
+#ar-flip-btn{
+  position:absolute;top:.85rem;left:1rem;pointer-events:all;
+  background:rgba(0,16,40,.75);border:1px solid rgba(255,255,255,.2);
+  border-radius:9px;color:rgba(255,255,255,.7);padding:.38rem .7rem;
+  font-size:11px;font-family:var(--sans);cursor:pointer;backdrop-filter:blur(8px);
+}
 </style>
 </head>
 <body>
@@ -329,22 +368,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
       <span class="lbl">Complete Assembly</span>
       <span class="desc">Full assembled PEFC stack</span>
     </button>
-    <button class="model-btn nafion-btn" onclick="selectModel(this,'nafion')" data-m="nafion"
-            style="grid-column:1/-1">
-      <span class="icon">🧪</span>
-      <span class="lbl">Nafion Structure</span>
-      <span class="desc">Stylised PFSA chemical structure — ionomer PEM</span>
-    </button>
   </div>
 
   <div id="ar-note" class="f4">
-    📍 Use WebXR native AR.<br>
-    Point your camera at a flat surface and tap to place the cell.<br>
-    Requires a WebXR compatible browser.
+    📷 Live camera overlay — no markers needed.<br>
+    Your rear camera streams full-screen. The PEFC 3D model is rendered on top.<br>
+    <strong>Drag</strong> to rotate · <strong>Pinch</strong> to scale · Blend slider to fade model in/out.<br>
+    <span style="opacity:.55;font-size:10px">Works on iPhone Safari, Chrome Android, any modern browser · Camera permission required</span>
   </div>
 
   <button class="launch-btn f5" id="launch-btn" onclick="launch()">Open 3D Viewer</button>
-  <p class="info-foot">Morris, Jervis &amp; Foglia · Gordon Conference on Neutron Scattering 2025</p>
+  <p class="info-foot">Morris &amp; Foglia · Gordon Conference on Neutron Scattering 2026</p>
 </div>
 
 <!-- 3D VIEWER -->
@@ -365,16 +399,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
       <h3 id="ip-title"></h3>
       <p class="ip-desc" id="ip-desc"></p>
       <div id="ip-specs"></div>
-    </div>
-
-    <!-- Nafion info panel — only shown in nafion mode -->
-    <div id="nafion-panel" style="display:none">
-      <h3 onclick="toggleNafionPanel()">
-        Nafion PFSA — Stylised Chemical Structure
-        <span class="toggle-arrow">▲</span>
-      </h3>
-      <p class="ip-desc">Perfluorosulfonic acid (PFSA) ionomer used as the proton-exchange membrane in the PEFC. The PTFE backbone provides chemical resistance; pendant side-chains terminating in −SO₃H groups enable proton conduction.</p>
-      <div id="nafion-specs"></div>
     </div>
   </div>
   <div id="viewer-footer">
@@ -412,41 +436,78 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   </div>
 </div>
 
-<!-- AR VIEWER -->
+<!-- CAMERA OVERLAY (AR)
+     Live getUserMedia video fills #ar-view.
+     Three.js canvas rendered on top with alpha:true.
+     Works on iPhone Safari 14.3+, Chrome Android, Desktop browsers.
+     No WebXR. No AR.js. No markers.
+-->
 <div id="ar-view">
+  <!-- 1. Live camera feed -->
+  <video id="ar-video" autoplay muted playsinline webkit-playsinline
+         style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0">
+  </video>
+
+  <!-- 2. Three.js transparent overlay -->
   <canvas id="ar-canvas"></canvas>
-  <div id="cam-err"><p>⚠️ Camera access denied or unavailable.<br>Please allow camera permissions and reload the page.</p></div>
+
+  <!-- 3. Camera starting spinner -->
+  <div id="ar-camload">
+    <div class="ring"></div>
+    <p>Starting camera…</p>
+  </div>
+
+  <!-- 4. Permission / error message -->
+  <div id="cam-err">
+    <div class="err-box">
+      <p id="cam-err-msg">⚠️ Camera access denied.<br>Please allow camera access and try again.</p>
+      <button onclick="retryCamera()">Try Again</button>
+    </div>
+  </div>
+
+  <!-- 5. HUD layer (pointer-events:none root, children opt-in) -->
   <div id="ar-ui">
     <div id="ar-header">
       <h1>Operando PEFC</h1>
-      <p id="ar-sub">Tap START AR below, then tap on a surface to place</p>
+      <p id="ar-sub">Drag to rotate · Pinch to scale</p>
     </div>
-    <button id="ar-back" onclick="goBackFromAR()">← Exit</button>
-    <div id="ar-status">✓ Surface detected</div>
-    <div id="scan-hint">
-      <div class="scan-frame">
-        <div class="sc tl"></div><div class="sc tr"></div>
-        <div class="sc bl"></div><div class="sc br"></div>
-      </div>
-      <p>Scan your surroundings</p>
-      <small>Look for a flat surface and tap to place</small>
+    <button id="ar-back" onclick="stopAR()">← Exit</button>
+    <button id="ar-flip-btn" onclick="flipCamera()">⟳ Flip</button>
+    <div id="ar-status">📷 Camera live</div>
+
+    <!-- Opacity blend slider -->
+    <div id="ar-blend-row">
+      <label>Blend</label>
+      <input type="range" id="ar-blend-slider" min="10" max="100" value="85" step="5"
+             oninput="setARBlend(this.value)">
+      <span id="ar-blend-val">85%</span>
     </div>
-    <!-- Info card slides up from bottom -->
+
+    <!-- Info card (slides up) -->
     <div id="ar-card">
       <button id="ar-card-close" onclick="document.getElementById('ar-card').classList.remove('show')">✕</button>
-      <h3 id="ar-card-title">Full Cell Assembly</h3>
-      <p class="ar-desc" id="ar-card-desc">Complete MEA stack with Al current collector plates. Active area 10×10 mm. 1 mm Al neutron-transparent window. Swagelok fittings in QENS orientation.</p>
-      <div class="ar-specs" id="ar-card-specs">
-        <span class="ar-stat"><span class="sk">Technique</span><span class="sv">SANS + SAXS</span></span>
+      <h3>Full Cell Assembly</h3>
+      <p class="ar-desc">Complete MEA stack with Al bipolar plates. Active area 30×30 mm2. 6 mm Al neutron-transparent window.</p>
+      <div class="ar-specs">
+        <span class="ar-stat"><span class="sk">Technique</span><span class="sv">SANS + SAXS + QENS</span></span>
         <span class="ar-stat"><span class="sk">Active area</span><span class="sv">10×10 mm</span></span>
         <span class="ar-stat"><span class="sk">Gas inlets</span><span class="sv">4× Swagelok ¼″</span></span>
+        <span class="ar-stat"><span class="sk">Window</span><span class="sv">1 mm Al</span></span>
         <span class="ar-stat"><span class="sk">Fasteners</span><span class="sv">8× M4 + PTFE</span></span>
       </div>
     </div>
+
+    <!-- Toolbar -->
     <div id="ar-ctrls">
-      <button class="ar-btn" id="ar-xpl-btn" onclick="toggleARExplode()"><span class="ci">💥</span>Explode</button>
-      <button class="ar-btn" onclick="showARInfo()"><span class="ci">ℹ️</span>Info</button>
-      <button class="ar-btn" onclick="resetARView()"><span class="ci">↺</span>Reset</button>
+      <button class="ar-btn" id="ar-xpl-btn" onclick="toggleARExplode()">
+        <span class="ci">💥</span>Explode
+      </button>
+      <button class="ar-btn" onclick="document.getElementById('ar-card').classList.add('show')">
+        <span class="ci">ℹ️</span>Info
+      </button>
+      <button class="ar-btn" onclick="resetARView()">
+        <span class="ci">↺</span>Reset
+      </button>
     </div>
   </div>
 </div>
@@ -467,8 +528,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 import * as THREE from 'three';
 import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// AR: using getUserMedia — no WebXR imports needed
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { ARButton }      from 'three/addons/webxr/ARButton.js';
 
 // ═══════════════════════════════════════════════════════════
 //  CONFIG
@@ -476,26 +537,8 @@ import { ARButton }      from 'three/addons/webxr/ARButton.js';
 const MODELS_PATH = './models/';
 
 const CFG = {
-  explosion: { name: 'Exploded View',     file: 'pefc-explosion.glb'            },
-  complete:  { name: 'Complete Assembly', file: 'pefc-complete.glb'             },
-  nafion:    { name: 'Nafion Structure',  file: 'nafion_stylised_structure.glb' },
-};
-
-// ── NAFION viewer config ────────────────────────────────────────────────────
-// This model has no materials, no normals, no vertex colours (generated by
-// trimesh). We assign a custom MeshPhysicalMaterial in loadGLB3() when the
-// key === 'nafion'. No component toggle, no explode — the footer is hidden.
-const NAFION_INFO = {
-  title: 'Nafion PFSA — Stylised Chemical Structure',
-  desc:  'Perfluorosulfonic acid (PFSA) ionomer used as the proton-exchange membrane (PEM) in the PEFC. The backbone is polytetrafluoroethylene (PTFE); pendant vinyl-ether side-chains terminate in sulfonic acid groups (−SO₃H) that facilitate proton conduction.',
-  specs: [
-    ['EW',           '1100 g/eq'],
-    ['Thickness',    '183 μm (Nafion 117)'],
-    ['Conductivity', '~0.1 S/cm (hydrated)'],
-    ['Tg',           '~110 °C'],
-    ['Role',         'Proton-exchange membrane'],
-    ['Technique',    'SANS / SAXS / QENS target'],
-  ]
+  explosion: { name: 'Exploded View',     file: 'pefc-explosion.glb' },
+  complete:  { name: 'Complete Assembly', file: 'pefc-complete.glb'  },
 };
 
 // ── ORIENTATION ─────────────────────────────────────────
@@ -523,16 +566,16 @@ const COMP_NODES = {
 };
 
 const COMP_INFO = {
-  anode:            { title: 'Anode Plate',           desc: 'Aluminium 6061 current collector with serpentine flow field. 1 mm neutron-transparent window region.',                                    specs: [['Material','Al 6061'],['Window','1 mm Al'],['Function','Current collection + gas distribution']] },
-  cathode:          { title: 'Cathode Plate',          desc: 'Mirror of anode plate. SAXS sealing puck on outer face enables simultaneous X-ray measurement.',                                        specs: [['Material','Al 6061'],['Feature','SAXS sealing puck face'],['Function','Current collection + gas distribution']] },
-  mea:              { title: 'MEA',                    desc: 'Three-layer MEA: anode GDL / Nafion 117 PEM / cathode GDL. Principal SANS, SAXS and QENS target.',                                      specs: [['Membrane','Nafion 117, 183 μm'],['EW','1100 g/eq'],['Ionomer peak','~0.15 Å⁻¹']] },
-  ptfe_gaskets:     { title: 'PTFE Gaskets',           desc: 'PTFE sheet gaskets provide uniform compression and electrical isolation between Al plates and the MEA.',                                  specs: [['Material','PTFE'],['Thickness','~0.3 mm'],['Function','Seal + electrical isolation']] },
+  anode:            { title: 'Anode Plate',           desc: 'Aluminium 6082 bipolar plate with serpentine flow field. 30x30 mm2 active area.',                                    specs: [['Material','Al 6082'],['Window','6 mm Al'],['Function','Current collection + gas distribution']] },
+  cathode:          { title: 'Cathode Plate',          desc: 'Mirror of anode plate. SAXS sealing puck on outer face enables simultaneous X-ray measurement.',                                        specs: [['Material','Al 6082'],['Feature','SAXS sealing puck face'],['Function','Current collection + gas distribution']] },
+  mea:              { title: 'MEA',                    desc: 'Three-layer MEA: Anode GDE / Nafion 117 / 211 / 212 PEM / cathode GDE.',                                      specs: [['Membrane','Nafion 117/211/212, 183/25/50 μm'],['EW','1100 g/eq'],['Ionomer peak','~0.15 Å⁻¹']] },
+  ptfe_gaskets:     { title: 'PTFE Gaskets',           desc: 'PTFE sheet gaskets provide uniform compression and electrical isolation between Al plates and the MEA.',                                  specs: [['Material','PTFE'],['Thickness','~0.15 mm'],['Function','Seal + electrical isolation']] },
   ptfe_bushings:    { title: 'PTFE Bolt Bushings',     desc: 'PTFE bushings insulate M4 stainless steel fasteners from the Al plates, preventing electrical short-circuit through the bolts.',         specs: [['Material','PTFE'],['Count','8'],['Function','Electrical isolation of fasteners']] },
-  fasteners:        { title: 'M4 Fasteners',           desc: '18-8 stainless steel socket head cap screws provide uniform clamping force. PTFE bushings prevent contact with Al plates.',             specs: [['Material','18-8 SS'],['Thread','M4'],['Count','8']] },
+  fasteners:        { title: 'M4 Fasteners',           desc: '8 stainless steel M4 screws provide uniform compression force. PTFE bushings prevent contact with Al plates.',             specs: [['Material','SS'],['Thread','M4'],['Count','8']] },
   swagelok_anode:   { title: 'Swagelok — Anode',       desc: 'SS-400-1/4 connectors deliver humidified H₂ to the anode flow field inlet and outlet. Mounted on top in QENS orientation.',             specs: [['Part','SS-400-1/4'],['Fluid','Humidified H₂'],['Count','2 (inlet + outlet)']] },
-  swagelok_cathode: { title: 'Swagelok — Cathode',     desc: 'SS-400-1/4 connectors deliver humidified O₂/air to the cathode flow field. Mounted on top in QENS orientation.',                       specs: [['Part','SS-400-1/4'],['Fluid','Humidified O₂/air'],['Count','2 (inlet + outlet)']] },
-  anode_puck:       { title: 'Anode Sealing Puck',     desc: 'Acrylic sealing puck on the outer anode face. Provides a flat optical window for X-ray beam entry on the anode side.',                  specs: [['Material','Acrylic / PMMA'],['Function','Beam window + sealing']] },
-  cathode_puck:     { title: 'Cathode Sealing Puck',   desc: 'Matched sealing puck on cathode outer face. Together with anode puck defines the X-ray/neutron transmission path through the cell.',    specs: [['Material','Acrylic / PMMA'],['Function','Beam window + sealing']] },
+  swagelok_cathode: { title: 'Swagelok — Cathode',     desc: 'SS-400-1/4 connectors deliver humidified air to the cathode flow field. Mounted on top in QENS orientation.',                       specs: [['Part','SS-400-1/4'],['Fluid','Humidified air'],['Count','2 (inlet + outlet)']] },
+  anode_puck:       { title: 'Anode Sealing Puck',     desc: 'Al 6082 sealing puck on the outer anode face. Provides gas tightness for QENS, and X-ray window for SAXS',                  specs: [['Material','Al 6082'],['Function','Beam window + sealing']] },
+  cathode_puck:     { title: 'Cathode Sealing Puck',   desc: 'Matched sealing puck on cathode outer face. Together with anode puck defines the X-ray/neutron transmission path through the cell.',    specs: [['Material','Al 6082'],['Function','Beam window + sealing']] },
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -547,12 +590,17 @@ let glbRoot3 = null, topGroups3 = {}, compVis3 = {};
 let xparts3 = [], xFac3 = 0, xTgt3 = 0;
 let ray3, mouse3;
 
-// ── AR ───────────────────────────────────────────────────
-let arRenderer, arScene, arCamera, arController;
-let hitTestSource = null, hitTestSourceRequested = false;
-let arReticle;
-let arModelGroup, arGlbRoot, arXparts = [], arXF = 0, arXT = 0;
-let arRunning = false, markerSeen = false;
+// ── Camera Overlay (AR) ─────────────────────────────────
+// Uses getUserMedia — works on iOS Safari, Chrome Android, all desktops.
+// No WebXR, no AR.js, no markers required.
+let arRenderer, arScene, arCamera, arCtrl;
+let arAnimId, arRunning = false;
+let arStream    = null;         // MediaStream from getUserMedia
+let arFacing    = 'environment'; // rear cam by default
+let arGlbRoot   = null;
+let arXparts    = [], arXF = 0, arXT = 0;
+let arBlend     = 0.85;         // model opacity over camera feed
+let arExploded  = false;
 
 // ═══════════════════════════════════════════════════════════
 //  BOOT
@@ -774,78 +822,13 @@ function loadGLB3(key) {
   topGroups3 = {}; xparts3 = []; xFac3 = 0; xTgt3 = 0;
   compVis3 = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, true]));
   document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
-  // Reset nafion-specific UI
-  document.getElementById('viewer').classList.remove('nafion-mode');
-  document.getElementById('nafion-panel').style.display = 'none';
-  document.getElementById('nafion-panel').classList.remove('collapsed');
 
   const glbUrl = MODELS_PATH + CFG[key].file;
+  console.log('Loading GLB from:', glbUrl);
   new GLTFLoader().load(
     glbUrl,
     gltf => {
       const model = gltf.scene;
-
-      if (key === 'nafion') {
-        // ── Nafion-specific loading ─────────────────────────────────────────
-        // This GLB (generated by trimesh) has: no materials, no normals,
-        // no vertex colours. The mesh is Y-elongated (chain runs along Y).
-        // We rotate it so the chain runs horizontally, scale/centre, then
-        // assign a custom translucent MeshPhysicalMaterial.
-
-        model.rotation.set(0, 0, -Math.PI / 2);   // chain horizontal
-
-        const nb  = new THREE.Box3().setFromObject(model);
-        const nsz = nb.getSize(new THREE.Vector3());
-        const nsc = 12 / Math.max(nsz.x, nsz.y, nsz.z, 0.001);
-        model.scale.setScalar(nsc);
-        const nb2 = new THREE.Box3().setFromObject(model);
-        model.position.sub(nb2.getCenter(new THREE.Vector3()));
-
-        // Translucent blue-teal glass-like material
-        const nafionMat = new THREE.MeshPhysicalMaterial({
-          color:           new THREE.Color(0x1aadcc),
-          emissive:        new THREE.Color(0x002233),
-          roughness:       0.2,
-          metalness:       0.0,
-          transmission:    0.5,     // partial glass transparency
-          thickness:       1.5,
-          ior:             1.45,
-          transparent:     true,
-          opacity:         0.92,
-          side:            THREE.DoubleSide,
-          envMapIntensity: 1.4,
-        });
-
-        model.traverse(ch => {
-          if (!ch.isMesh) return;
-          // Compute normals — the trimesh GLB export omits them entirely
-          ch.geometry.computeVertexNormals();
-          ch.material     = nafionMat;
-          ch.castShadow   = true;
-          ch.receiveShadow = true;
-        });
-
-        glbRoot3 = model;
-        S3.add(model);
-
-        // Frame camera: look along -Z, model centred
-        const nb3  = new THREE.Box3().setFromObject(model);
-        const nsz3 = nb3.getSize(new THREE.Vector3());
-        const nd   = Math.max(nsz3.x, nsz3.y, nsz3.z) * 1.55;
-        C3.position.set(0, nd * 0.2, nd);
-        C3.lookAt(0, 0, 0);
-        ctrl3.target.set(0, 0, 0);
-        ctrl3.update();
-
-        // Switch viewer into nafion mode (hides explode + component footer)
-        document.getElementById('viewer').classList.add('nafion-mode');
-        document.getElementById('nafion-panel').style.display = 'block';
-        populateNafionSpecs();
-        document.getElementById('vload').classList.add('hidden');
-        return;   // skip standard PEFC path below
-      }
-
-      // ── Standard PEFC models ──────────────────────────────────────────────
       applyMaterials(model);
       normaliseModel(model, 12);
       topGroups3 = buildGroups(model);
@@ -853,6 +836,7 @@ function loadGLB3(key) {
       glbRoot3   = model;
       S3.add(model);
 
+      // Auto-frame camera
       const box  = new THREE.Box3().setFromObject(model);
       const sz   = box.getSize(new THREE.Vector3());
       const dist = Math.max(sz.x, sz.y, sz.z) * 1.4;
@@ -861,6 +845,7 @@ function loadGLB3(key) {
       ctrl3.target.set(0, 0, 0);
       ctrl3.update();
 
+      // Hide loader
       document.getElementById('vload').classList.add('hidden');
     },
     xhr => {
@@ -915,9 +900,6 @@ function stopViewer3() {
   ctrl3 && ctrl3.dispose(); R3 && R3.dispose();
   R3 = S3 = C3 = ctrl3 = null; glbRoot3 = null; topGroups3 = {}; xparts3 = [];
   document.getElementById('viewer').classList.remove('on');
-  document.getElementById('viewer').classList.remove('nafion-mode');
-  document.getElementById('nafion-panel').style.display = 'none';
-  document.getElementById('nafion-panel').classList.remove('collapsed');
   document.getElementById('explode-slider').value = 0;
   document.getElementById('xpct').textContent = '0%';
   document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
@@ -956,208 +938,383 @@ window.isolate = comp => {
 };
 
 // ═══════════════════════════════════════════════════════════
-//  AR VIEWER  ── WebXR
+//  CAMERA OVERLAY  ──  getUserMedia + Three.js
 // ═══════════════════════════════════════════════════════════
-function startAR() {
-  document.getElementById('ar-view').classList.add('on');
-  document.getElementById('scan-hint').classList.remove('hidden');
-  document.getElementById('ar-status').classList.remove('show');
-  document.getElementById('ar-card').classList.remove('show');
-  document.getElementById('cam-err').style.display = 'none';
+//
+//  Strategy:
+//    • <video id="ar-video">  receives the MediaStream (rear cam)
+//    • <canvas id="ar-canvas"> has alpha:true + clearColor(0,0,0,0)
+//      so the Three.js scene composites transparently over the video
+//    • OrbitControls on the canvas handles 1-finger drag (orbit)
+//      and 2-finger pinch (zoom) — Three.js handles touch natively
+//    • An opacity slider sets material.opacity on all mesh materials
+//      so the model fades in/out against the real-world background
+//    • "Flip" button toggles facingMode between rear/front camera
+//
+//  iOS Safari notes that make or break the feature:
+//    - <video> MUST have `playsinline` attribute (no fullscreen takeover)
+//    - `muted` is required for autoplay
+//    - Call video.play() explicitly after srcObject is set
+//    - getUserMedia works on Safari 14.3+ over HTTPS only
+//    - facingMode: { exact: 'environment' } fails on some iPhones in
+//      simulator; use { ideal: 'environment' } with a plain fallback
+// ═══════════════════════════════════════════════════════════
 
-  if (!arRenderer) {
-    initAR();
-  }
+async function startAR() {
+  // Reset state
+  arExploded = false; arXF = 0; arXT = 0;
+  document.getElementById('ar-xpl-btn').classList.remove('on');
+  document.getElementById('ar-card').classList.remove('show');
+  document.getElementById('ar-status').classList.remove('show');
+  document.getElementById('cam-err').style.display = 'none';
+  document.getElementById('ar-camload').style.display = 'block';
+  document.getElementById('ar-view').classList.add('on');
+
+  // ── Step 1: start camera stream ────────────────────────
+  const ok = await startCameraStream();
+  if (!ok) return;
+
+  // ── Step 2: set up Three.js renderer ──────────────────
+  setupARRenderer();
+
+  // ── Step 3: load model (async, shows while cam is live) 
+  loadGLBForAR();
+
+  // ── Step 4: animate ───────────────────────────────────
+  arRunning = true;
+  arAnimId = requestAnimationFrame(loopAR);
+
+  // Show status
+  document.getElementById('ar-camload').style.display = 'none';
+  document.getElementById('ar-status').textContent = '📷 Camera live';
+  document.getElementById('ar-status').classList.add('show');
+
+  window.addEventListener('resize', onARResize);
 }
 
-function initAR() {
+// ── Camera stream ─────────────────────────────────────────
+async function startCameraStream() {
+  // Stop any existing stream first
+  if (arStream) {
+    arStream.getTracks().forEach(t => t.stop());
+    arStream = null;
+  }
+
+  const video = document.getElementById('ar-video');
+
+  // iOS Safari requires these attributes to be on the element itself,
+  // not just passed as JS properties.  They're set in HTML but we
+  // reinforce them here for reliability.
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', '');
+  video.muted = true;
+
+  // Build constraints.  We try exact facingMode first (Android works),
+  // but fall back to `ideal` which is what iOS Safari needs.
+  const constraints = buildCamConstraints(arFacing, true);
+  
+  try {
+    arStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (e1) {
+    // Retry with ideal instead of exact
+    try {
+      arStream = await navigator.mediaDevices.getUserMedia(
+        buildCamConstraints(arFacing, false)
+      );
+    } catch (e2) {
+      // Last resort: any camera
+      try {
+        arStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      } catch (e3) {
+        showCamError(e3);
+        return false;
+      }
+    }
+  }
+
+  video.srcObject = arStream;
+  try {
+    await video.play();
+  } catch(e) {
+    // On iOS the play() call may fail if not triggered by user gesture.
+    // We already reached here from a button tap so it should be fine,
+    // but swallow the error gracefully.
+    console.warn('video.play() warning:', e);
+  }
+  return true;
+}
+
+function buildCamConstraints(facing, useExact) {
+  const facingConstraint = useExact
+    ? { exact: facing }
+    : { ideal: facing };
+  return {
+    video: {
+      facingMode: facingConstraint,
+      width:  { ideal: 1280 },
+      height: { ideal: 720 },
+    },
+    audio: false,
+  };
+}
+
+function showCamError(err) {
+  console.error('getUserMedia error:', err);
+  document.getElementById('ar-camload').style.display = 'none';
+  let msg = '⚠️ Camera access denied.\nPlease allow camera access and try again.';
+  if (err && err.name === 'NotFoundError') {
+    msg = '⚠️ No camera found on this device.';
+  } else if (err && err.name === 'NotAllowedError') {
+    msg = '⚠️ Camera permission denied.\n\nOn iPhone: Settings → Safari → Camera → Allow.\nThen reload this page.';
+  }
+  document.getElementById('cam-err-msg').textContent = msg;
+  document.getElementById('cam-err').style.display = 'block';
+}
+
+// ── Three.js renderer setup ───────────────────────────────
+function setupARRenderer() {
+  if (arRenderer) return; // already set up
+
   const canvas = document.getElementById('ar-canvas');
   const W = window.innerWidth, H = window.innerHeight;
 
-  arRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  arRenderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: true,                    // transparent background — video shows through
+    premultipliedAlpha: false,      // needed for correct alpha compositing
+  });
+  arRenderer.setClearColor(0x000000, 0); // fully transparent clear
   arRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   arRenderer.setSize(W, H);
-  arRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  arRenderer.toneMappingExposure = 1.2;
-  arRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  arRenderer.xr.enabled = true;
+  arRenderer.shadowMap.enabled = true;
+  arRenderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+  arRenderer.toneMapping       = THREE.ACESFilmicToneMapping;
+  arRenderer.toneMappingExposure = 1.3;
+  arRenderer.outputColorSpace  = THREE.SRGBColorSpace;
 
-  const arBtn = ARButton.createButton(arRenderer, { requiredFeatures: ['hit-test'] });
-  document.getElementById('ar-view').appendChild(arBtn);
+  // Scene — no background, no fog (we want transparent)
+  arScene  = new THREE.Scene();
 
-  arScene = new THREE.Scene();
-  arCamera = new THREE.PerspectiveCamera(70, W / H, 0.01, 20);
+  // Camera
+  arCamera = new THREE.PerspectiveCamera(45, W / H, 0.01, 1000);
+  arCamera.position.set(0, 4, 16);
+  arCamera.lookAt(0, 0, 0);
 
-  const pmremGenerator = new THREE.PMREMGenerator(arRenderer);
-  pmremGenerator.compileEquirectangularShader();
-  arScene.environment = pmremGenerator.fromScene(new RoomEnvironment()).texture;
-
-  arScene.add(new THREE.AmbientLight(0xffffff, 1.5));
-  const arSun = new THREE.DirectionalLight(0xfff0e0, 2.2);
-  arSun.position.set(5, 10, 5);
+  // Lights — generous ambient so model reads clearly against any background
+  arScene.add(new THREE.AmbientLight(0xffffff, 2.2));
+  const arSun = new THREE.DirectionalLight(0xfff8e0, 2.8);
+  arSun.position.set(8, 14, 8);
+  arSun.castShadow = true;
+  arSun.shadow.mapSize.set(1024, 1024);
   arScene.add(arSun);
+  const arFill = new THREE.PointLight(0x4ba3c3, 1.2, 80);
+  arFill.position.set(-8, 4, 6);
+  arScene.add(arFill);
+  const arRim = new THREE.PointLight(0xffd070, 0.7, 60);
+  arRim.position.set(6, -6, -8);
+  arScene.add(arRim);
 
-  arModelGroup = new THREE.Group();
-  arModelGroup.visible = false;
-  arScene.add(arModelGroup);
-
-  const geom = new THREE.RingGeometry(0.1, 0.15, 32).rotateX(-Math.PI / 2);
-  const mat = new THREE.MeshBasicMaterial({ color: 0x4ba3c3 });
-  arReticle = new THREE.Mesh(geom, mat);
-  arReticle.matrixAutoUpdate = false;
-  arReticle.visible = false;
-  arScene.add(arReticle);
-
-  arController = arRenderer.xr.getController(0);
-  arController.addEventListener('select', onARSelect);
-  arScene.add(arController);
-
-  loadGLBForAR();
-
-  arRenderer.xr.addEventListener('sessionstart', () => {
-    arRunning = true;
-    document.getElementById('scan-hint').classList.remove('hidden');
-    document.getElementById('ar-status').textContent = 'Scanning for surfaces...';
-    document.getElementById('ar-status').classList.add('show');
-  });
-
-  arRenderer.xr.addEventListener('sessionend', () => {
-    arRunning = false;
-    hitTestSourceRequested = false;
-    hitTestSource = null;
-    arModelGroup.visible = false;
-    markerSeen = false;
-  });
-
-  window.addEventListener('resize', onARResize);
-  arRenderer.setAnimationLoop(loopAR);
+  // OrbitControls — handles mouse drag, touch drag, and pinch-zoom natively
+  arCtrl = new OrbitControls(arCamera, canvas);
+  arCtrl.enableDamping   = true;
+  arCtrl.dampingFactor   = 0.08;
+  arCtrl.minDistance     = 2;
+  arCtrl.maxDistance     = 40;
+  arCtrl.autoRotate      = true;
+  arCtrl.autoRotateSpeed = 0.6;
+  arCtrl.enablePan       = false; // pan feels wrong in overlay mode
+  arCtrl.addEventListener('start', () => { arCtrl.autoRotate = false; });
 }
 
+// ── Load GLB for AR ───────────────────────────────────────
 function loadGLBForAR() {
+  if (arGlbRoot) return; // already loaded
+
   new GLTFLoader().load(
     MODELS_PATH + CFG['explosion'].file,
     gltf => {
       const model = gltf.scene;
-      applyMaterials(model);
-      normaliseModel(model, 0.15); // 15 cm realistic scale
 
+      // Normalise size (8 units looks good against real background)
+      model.rotation.set(MODEL_RX, MODEL_RY, MODEL_RZ);
+      const box  = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const sc   = 8 / Math.max(size.x, size.y, size.z, 0.001);
+      model.scale.setScalar(sc);
+      const box2 = new THREE.Box3().setFromObject(model);
+      model.position.sub(box2.getCenter(new THREE.Vector3()));
+
+      // Materials — enable transparency for the blend slider
+      const toRemove = [];
+      model.traverse(ch => {
+        if (ch.name === 'Cube') { toRemove.push(ch); return; }
+        if (!ch.isMesh) return;
+        ch.castShadow = ch.receiveShadow = true;
+        const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
+        mats.forEach(m => {
+          if (!m) return;
+          m.transparent = true;
+          m.opacity     = arBlend;
+          m.envMapIntensity = 1.0;
+          if (m.opacity < 0.2) m.opacity = 0.35;
+        });
+      });
+      toRemove.forEach(c => c.removeFromParent());
+
+      // Build explode parts
+      model.updateWorldMatrix(true, true);
+      const invMat = new THREE.Matrix4().copy(model.matrixWorld).invert();
       const groups = buildGroups(model);
-      arXparts = buildXplodeParts(model, groups);
+      arXparts = [];
+      for (const nodes of Object.values(groups)) {
+        nodes.forEach(node => {
+          const b = new THREE.Box3().setFromObject(node);
+          if (b.isEmpty()) return;
+          const lc = b.getCenter(new THREE.Vector3()).applyMatrix4(invMat);
+          if (lc.length() < 1e-5) return;
+          arXparts.push({ node, origin: node.position.clone(), dir: lc.normalize() });
+        });
+      }
+
       arGlbRoot = model;
-      arModelGroup.add(model);
+      arScene.add(model);
+
+      // Frame camera on model
+      const box3 = new THREE.Box3().setFromObject(model);
+      const sz   = box3.getSize(new THREE.Vector3());
+      const dist = Math.max(sz.x, sz.y, sz.z) * 1.6;
+      arCamera.position.set(0, dist * 0.35, dist);
+      arCamera.lookAt(0, 0, 0);
+      arCtrl.target.set(0, 0, 0);
+      arCtrl.update();
     },
     undefined,
     err => console.error('AR GLB load error:', err)
   );
 }
 
-function onARSelect() {
-  if (arReticle.visible && arGlbRoot) {
-    arModelGroup.position.setFromMatrixPosition(arReticle.matrix);
-    arModelGroup.quaternion.setFromRotationMatrix(arReticle.matrix);
-    arModelGroup.visible = true;
-    
-    document.getElementById('scan-hint').classList.add('hidden');
-    document.getElementById('ar-status').textContent = '✓ Model placed';
-    document.getElementById('ar-status').classList.add('show');
-    
-    if(!markerSeen) {
-       markerSeen = true;
-       setTimeout(() => showARInfo(), 900);
-    }
-  }
-}
-
-function loopAR(timestamp, frame) {
+// ── Render loop ───────────────────────────────────────────
+function loopAR() {
   if (!arRunning) return;
+  arAnimId = requestAnimationFrame(loopAR);
 
-  if (frame) {
-    const referenceSpace = arRenderer.xr.getReferenceSpace();
-    const session = arRenderer.xr.getSession();
-
-    if (hitTestSourceRequested === false) {
-      session.requestReferenceSpace('viewer').then(function (refSpace) {
-        session.requestHitTestSource({ space: refSpace }).then(function (source) {
-          hitTestSource = source;
-        });
-      });
-      session.addEventListener('end', function () {
-        hitTestSourceRequested = false;
-        hitTestSource = null;
-      });
-      hitTestSourceRequested = true;
-    }
-
-    if (hitTestSource) {
-      const hitTestResults = frame.getHitTestResults(hitTestSource);
-      if (hitTestResults.length > 0) {
-        const hit = hitTestResults[0];
-        arReticle.visible = true;
-        arReticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
-      } else {
-        arReticle.visible = false;
-      }
-    }
+  // Smooth explode
+  if (Math.abs(arXF - arXT) > 0.0005) {
+    arXF += (arXT - arXF) * 0.1;
+    applyARXplode();
   }
 
-  if (Math.abs(arXF - arXT) > 0.0005) { 
-    arXF += (arXT - arXF) * 0.1; 
-    applyARXplode(); 
-  }
+  arCtrl && arCtrl.update();
 
-  arRenderer.render(arScene, arCamera);
+  // Render with transparent background so <video> shows through
+  if (arRenderer && arScene && arCamera) {
+    arRenderer.render(arScene, arCamera);
+  }
 }
 
 function applyARXplode() {
   arXparts.forEach(({ node, origin, dir }) => {
-    node.position.copy(origin).addScaledVector(dir, arXF * 0.08); // Scale explosion movement down for 15cm model
+    node.position.copy(origin).addScaledVector(dir, arXF * 30);
   });
 }
 
 function onARResize() {
-  if (!arRenderer) return;
+  if (!arRenderer || !arCamera) return;
   const W = window.innerWidth, H = window.innerHeight;
   arRenderer.setSize(W, H);
   arCamera.aspect = W / H;
   arCamera.updateProjectionMatrix();
 }
 
+// ── Stop AR ───────────────────────────────────────────────
 function stopAR() {
-  if (arRenderer && arRenderer.xr.isPresenting) {
-    arRenderer.xr.getSession().end();
+  arRunning = false;
+  if (arAnimId) { cancelAnimationFrame(arAnimId); arAnimId = null; }
+  window.removeEventListener('resize', onARResize);
+
+  // Stop camera tracks
+  if (arStream) {
+    arStream.getTracks().forEach(t => t.stop());
+    arStream = null;
   }
+  const video = document.getElementById('ar-video');
+  video.srcObject = null;
+
+  // Dispose renderer + controls (but keep arGlbRoot loaded for quick re-entry)
+  if (arCtrl)     { arCtrl.dispose(); arCtrl = null; }
+  if (arRenderer) { arRenderer.dispose(); arRenderer = null; }
+  arScene = arCamera = null;
+
   document.getElementById('ar-view').classList.remove('on');
+  document.getElementById('ar-status').classList.remove('show');
   document.getElementById('ar-card').classList.remove('show');
-  markerSeen = false; arXF = 0; arXT = 0;
-  if(arModelGroup) arModelGroup.visible = false;
+  arXF = 0; arXT = 0; arExploded = false;
+  document.getElementById('ar-xpl-btn').classList.remove('on');
+
+  showLanding();
 }
 
-
-// AR button handlers
-window.toggleARExplode = () => {
-  const on = !document.getElementById('ar-xpl-btn').classList.contains('on');
-  document.getElementById('ar-xpl-btn').classList.toggle('on', on);
-  arXT = on ? 1 : 0;
+// ── Camera flip ───────────────────────────────────────────
+window.flipCamera = async function() {
+  arFacing = arFacing === 'environment' ? 'user' : 'environment';
+  await startCameraStream();
 };
-window.showARInfo  = () => document.getElementById('ar-card').classList.add('show');
+
+// ── Retry after permission error ──────────────────────────
+window.retryCamera = async function() {
+  document.getElementById('cam-err').style.display = 'none';
+  document.getElementById('ar-camload').style.display = 'block';
+  const ok = await startCameraStream();
+  if (ok) {
+    document.getElementById('ar-camload').style.display = 'none';
+    document.getElementById('ar-status').textContent = '📷 Camera live';
+    document.getElementById('ar-status').classList.add('show');
+    if (!arRenderer) {
+      setupARRenderer();
+      loadGLBForAR();
+      arRunning = true;
+      arAnimId = requestAnimationFrame(loopAR);
+      window.addEventListener('resize', onARResize);
+    }
+  }
+};
+
+// ── Blend slider ──────────────────────────────────────────
+window.setARBlend = function(val) {
+  arBlend = val / 100;
+  document.getElementById('ar-blend-val').textContent = val + '%';
+  if (!arGlbRoot) return;
+  arGlbRoot.traverse(ch => {
+    if (!ch.isMesh) return;
+    const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
+    mats.forEach(m => { if (m) m.opacity = arBlend; });
+  });
+};
+
+// ── AR toolbar handlers ───────────────────────────────────
+window.toggleARExplode = () => {
+  arExploded = !arExploded;
+  arXT = arExploded ? 1 : 0;
+  document.getElementById('ar-xpl-btn').classList.toggle('on', arExploded);
+};
+
+window.showARInfo = () => document.getElementById('ar-card').classList.add('show');
+
 window.resetARView = () => {
-  arXT = 0;
+  arExploded = false; arXT = 0;
   document.getElementById('ar-xpl-btn').classList.remove('on');
   document.getElementById('ar-card').classList.remove('show');
-};
-
-// ═══════════════════════════════════════════════════════════
-//  NAFION VIEWER HELPERS
-// ═══════════════════════════════════════════════════════════
-function populateNafionSpecs() {
-  const specs = NAFION_INFO.specs;
-  document.getElementById('nafion-specs').innerHTML = specs.map(s =>
-    `<div class="spec-row"><span class="sk">${s[0]}</span><span class="sv">${s[1]}</span></div>`
-  ).join('');
-}
-
-window.toggleNafionPanel = () => {
-  document.getElementById('nafion-panel').classList.toggle('collapsed');
+  if (arCtrl) {
+    arCtrl.autoRotate = true;
+    arCtrl.target.set(0, 0, 0);
+    if (arGlbRoot) {
+      const sz = new THREE.Box3().setFromObject(arGlbRoot).getSize(new THREE.Vector3());
+      const d  = Math.max(sz.x, sz.y, sz.z) * 1.6;
+      arCamera.position.set(0, d * 0.35, d);
+      arCtrl.update();
+    }
+  }
 };
 
 
