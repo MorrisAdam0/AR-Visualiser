@@ -1,14 +1,14 @@
-# Operando PEFC — AR Visualiser
+# Operando PEFC - AR Visualiser
 
-**UCL Department of Chemistry / Electrochemical Innovation Laboratory**  
+**UCL Department of Chemistry**  
 ---
 
 ## What this is
 
-A mobile augmented reality web app for the Gordon Conference poster:  
+A mobile augmented reality (AR) web app for the Neutron Scattering Gordon Conference 2026 poster:  
 **"From Structure to Dynamics — Modular Operando Fuel Cell Environments to enable Advanced Neutron and X-ray Characterisation"**
 
-Visitors scan the QR code on the poster, open the page in their phone browser, point the camera at the Hiro marker, and see the 3D fuel cell model floating above the poster. They can rotate, explode components, switch between views (full assembly / Nafion microstructure / beam geometry), and tap individual parts for material specs.
+Visitors scan the QR code on the poster, open the page in their phone browser, and see the 3D fuel cell model either within the web app or on their live camera feed. They can rotate, explode components, switch between views (full assembly / exploded fuel cell / Nafion microstructure), and tap individual parts for material specs.
 
 ---
 
@@ -20,7 +20,6 @@ marker.html      ← Print the Hiro marker + generate QR code
 README.md        ← This file
 ```
 
-No build step. No dependencies to install. Pure HTML/CSS/JS.
 
 ---
 
@@ -38,15 +37,6 @@ No build step. No dependencies to install. Pure HTML/CSS/JS.
 
 5. Affix both to your poster. Done.
 
----
-
-## Poster placement recommendation
-
-Place the marker + QR block in the lower-left of the poster (the "Conclusions" zone), ideally with this caption:
-
-> *"Scan QR then point camera at marker to see the 3D operando PEFC — rotate, explode components, and explore neutron beam geometries in augmented reality."*
-
-The marker needs ~10 cm of unobstructed space around it (no overlapping text or images).
 
 ---
 
@@ -56,15 +46,6 @@ The marker needs ~10 cm of unobstructed space around it (no overlapping text or 
 - **3D Viewer mode**: Uses [Three.js](https://threejs.org) with touch/mouse drag to rotate and a pinch-to-zoom gesture. Works without camera access, useful for table demos.
 - All 3D geometry is **procedurally generated** from layer specifications matching the real cell design. When you have exported CAD geometry (GLB/GLTF files from Fusion 360 or FreeCAD), drop them in and replace the procedural builders with `<a-gltf-model>` tags.
 
----
-
-## Adding your own 3D CAD models
-
-If you export `.glb` or `.gltf` files from your CAD software:
-
-1. Place the file in this folder, e.g. `cell-assembly.glb`
-
-2. In `index.html`, find the `buildARCellStack` function and replace it with:
 
 ```html
 <a-gltf-model id="ar-model-root" src="cell-assembly.glb" 
