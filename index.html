@@ -172,10 +172,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   padding:.28rem .62rem;border-radius:16px;border:1px solid rgba(255,255,255,.13);
   background:rgba(255,255,255,.04);color:rgba(255,255,255,.58);
   font-size:10px;font-family:var(--sans);cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;
 }
-.cbtn.on{background:rgba(75,163,195,.18);border-color:rgba(75,163,195,.45);color:rgba(255,255,255,.9)}
+.cbtn.on{
+  background:var(--cbtn-on-bg, rgba(75,163,195,.18));
+  border-color:var(--cbtn-on-border, rgba(75,163,195,.45));
+  color:rgba(255,255,255,.9);
+}
 .cbtn:not(.on){background:rgba(255,255,255,.02);border-color:rgba(255,255,255,.07);
   color:rgba(255,255,255,.22);text-decoration:line-through}
+.cbtn:not(.on) span[style]{opacity:.3}
 .qbtns{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.38rem}
 .qbtn{
   padding:.25rem .6rem;border-radius:13px;border:1px solid rgba(255,255,255,.09);
@@ -183,6 +189,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   font-size:9px;font-family:var(--sans);cursor:pointer;transition:all .15s;
 }
 .qbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+
 
 /* ─── AR / CAMERA OVERLAY ─────────────────────────────────
    Architecture:
@@ -414,16 +422,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
     <div class="ctrl-section">
       <span class="ctrl-label">Toggle Components</span>
       <div class="comp-btns-wrap">
-        <button class="cbtn on" data-comp="anode"            onclick="toggleComp(this)">🔵 Anode Plate</button>
-        <button class="cbtn on" data-comp="cathode"          onclick="toggleComp(this)">🔴 Cathode Plate</button>
-        <button class="cbtn on" data-comp="mea"              onclick="toggleComp(this)">🟡 MEA</button>
-        <button class="cbtn on" data-comp="ptfe_gaskets"     onclick="toggleComp(this)">⬜ PTFE Gaskets</button>
-        <button class="cbtn on" data-comp="ptfe_bushings"    onclick="toggleComp(this)">⬛ PTFE Bushings</button>
-        <button class="cbtn on" data-comp="fasteners"        onclick="toggleComp(this)">🔩 Fasteners</button>
-        <button class="cbtn on" data-comp="swagelok_anode"   onclick="toggleComp(this)">🟢 Swagelok Anode</button>
-        <button class="cbtn on" data-comp="swagelok_cathode" onclick="toggleComp(this)">🟠 Swagelok Cathode</button>
-        <button class="cbtn on" data-comp="anode_puck"       onclick="toggleComp(this)">◽ Anode Puck</button>
-        <button class="cbtn on" data-comp="cathode_puck"     onclick="toggleComp(this)">◾ Cathode Puck</button>
+        <button class="cbtn on" data-comp="anode"            onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(160,200,240,.18);--cbtn-on-border:rgba(160,200,240,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#a0c4e8;margin-right:4px;vertical-align:middle"></span>Anode Plate</button>
+        <button class="cbtn on" data-comp="cathode"          onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(160,200,240,.18);--cbtn-on-border:rgba(160,200,240,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#a0c4e8;margin-right:4px;vertical-align:middle"></span>Cathode Plate</button>
+        <button class="cbtn on" data-comp="mea"              onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(220,185,80,.18);--cbtn-on-border:rgba(220,185,80,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dbb94a;margin-right:4px;vertical-align:middle"></span>MEA</button>
+        <button class="cbtn on" data-comp="ptfe_gaskets"     onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(230,230,230,.12);--cbtn-on-border:rgba(230,230,230,.4)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#e0e0e0;margin-right:4px;vertical-align:middle"></span>PTFE Gaskets</button>
+        <button class="cbtn on" data-comp="ptfe_bushings"    onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(200,200,200,.12);--cbtn-on-border:rgba(200,200,200,.4)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#c8c8c8;margin-right:4px;vertical-align:middle"></span>PTFE Bushings</button>
+        <button class="cbtn on" data-comp="fasteners"        onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(190,190,200,.18);--cbtn-on-border:rgba(190,190,200,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#c0bfc8;margin-right:4px;vertical-align:middle"></span>Fasteners</button>
+        <button class="cbtn on" data-comp="swagelok_anode"   onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(190,190,200,.18);--cbtn-on-border:rgba(190,190,200,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#b8bcc4;margin-right:4px;vertical-align:middle"></span>Swagelok Anode</button>
+        <button class="cbtn on" data-comp="swagelok_cathode" onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(190,190,200,.18);--cbtn-on-border:rgba(190,190,200,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#b8bcc4;margin-right:4px;vertical-align:middle"></span>Swagelok Cathode</button>
+        <button class="cbtn on" data-comp="anode_puck"       onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(160,200,240,.14);--cbtn-on-border:rgba(160,200,240,.4)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#8ab4d4;margin-right:4px;vertical-align:middle"></span>Anode Puck</button>
+        <button class="cbtn on" data-comp="cathode_puck"     onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(160,200,240,.14);--cbtn-on-border:rgba(160,200,240,.4)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#8ab4d4;margin-right:4px;vertical-align:middle"></span>Cathode Puck</button>
       </div>
       <div class="qbtns">
         <button class="qbtn" onclick="showAll()">Show All</button>
@@ -478,7 +486,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
     <!-- Opacity blend slider -->
     <div id="ar-blend-row">
       <label>Blend</label>
-      <input type="range" id="ar-blend-slider" min="10" max="100" value="85" step="5"
+      <input type="range" id="ar-blend-slider" min="" max="100" value="85" step="5"
              oninput="setARBlend(this.value)">
       <span id="ar-blend-val">85%</span>
     </div>
@@ -490,9 +498,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
       <p class="ar-desc">Complete MEA stack with Al bipolar plates. Active area 30×30 mm2. 6 mm Al neutron-transparent window.</p>
       <div class="ar-specs">
         <span class="ar-stat"><span class="sk">Technique</span><span class="sv">SANS + SAXS + QENS</span></span>
-        <span class="ar-stat"><span class="sk">Active area</span><span class="sv">10×10 mm</span></span>
+        <span class="ar-stat"><span class="sk">Active area</span><span class="sv">30×30 mm2</span></span>
         <span class="ar-stat"><span class="sk">Gas inlets</span><span class="sv">4× Swagelok ¼″</span></span>
-        <span class="ar-stat"><span class="sk">Window</span><span class="sv">1 mm Al</span></span>
+        <span class="ar-stat"><span class="sk">Window</span><span class="sv">6 mm Al</span></span>
         <span class="ar-stat"><span class="sk">Fasteners</span><span class="sv">8× M4 + PTFE</span></span>
       </div>
     </div>
@@ -661,19 +669,44 @@ function normaliseModel(model, targetSize) {
 }
 
 function applyMaterials(model) {
+  // Fix PEFC model materials so colours read correctly under Three.js lighting.
+  // Fusion 360 exports all roughness as ~0.55 and metalness as 0, which makes
+  // aluminium look flat-white and stainless look identical to PTFE.
+  // We detect by material name and apply physically correct values.
+  const metalRoughMap = {
+    'Aluminum':    { metalness: 0.85, roughness: 0.20 },
+    'Acrylic':     { metalness: 0.0,  roughness: 0.05, transparent: true, opacity: 0.45 },
+    'Stainless':   { metalness: 0.90, roughness: 0.18 },
+    'Nylon':       { metalness: 0.0,  roughness: 0.65 },
+    'Plastic':     { metalness: 0.0,  roughness: 0.60 },
+    'Opaque(130':  { metalness: 0.0,  roughness: 0.50 },   // PTFE-ish grey
+    'Opaque(229':  { metalness: 0.0,  roughness: 0.55 },   // tan/nylon
+    'Opaque(160':  { metalness: 0.05, roughness: 0.50 },   // light grey
+  };
   const toRemove = [];
   model.traverse(ch => {
     if (ch.name === 'Cube') { toRemove.push(ch); return; }
     if (!ch.isMesh) return;
     ch.castShadow = ch.receiveShadow = true;
     const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
-    mats.forEach(m => { 
-      if (m) {
-        m.envMapIntensity = 1.0;
-        // Make sure highly transparent parts (like acrylic pucks) are visible
-        if (m.transparent && m.opacity < 0.2) m.opacity = 0.35;
-        if (m.transmission > 0) m.transmission = Math.min(m.transmission, 0.9);
+    mats.forEach(m => {
+      if (!m) return;
+      m.envMapIntensity = 1.5;
+      // Apply better PBR values based on material name
+      const name = m.name || '';
+      for (const [key, props] of Object.entries(metalRoughMap)) {
+        if (name.includes(key)) {
+          m.metalness  = props.metalness;
+          m.roughness  = props.roughness;
+          if (props.transparent) {
+            m.transparent = true;
+            m.opacity     = props.opacity;
+          }
+          break;
+        }
       }
+      // Ensure transparent parts are visible
+      if (m.transparent && m.opacity < 0.2) m.opacity = 0.35;
     });
   });
   toRemove.forEach(ch => ch.removeFromParent());
@@ -829,6 +862,8 @@ function loadGLB3(key) {
     glbUrl,
     gltf => {
       const model = gltf.scene;
+
+      // ── Standard PEFC models ──────────────────────────────────────────────
       applyMaterials(model);
       normaliseModel(model, 12);
       topGroups3 = buildGroups(model);
