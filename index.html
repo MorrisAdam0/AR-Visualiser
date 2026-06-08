@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Operando PEFC — Visualiser | UCL</title>
+<title>Operando PEFC &amp; QENS — Visualiser | UCL</title>
 
 
 <style>
@@ -94,7 +94,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 .f4{animation:fadeUp .5s .36s ease both}
 .f5{animation:fadeUp .5s .48s ease both}
 
-/* ─── 3D VIEWER ─────────────────────────────────────────── */
+/* candlestick model button accent */
+.model-btn[data-m="candlestick"].on{border-color:#a87fdc;background:rgba(168,127,220,.07)}
+
 #viewer{
   position:fixed;inset:0;z-index:200;
   background:radial-gradient(ellipse at 20% 15%,#001c38 0%,#000410 75%);
@@ -359,14 +361,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
   <p class="wordmark f1">University College London · Department of Chemistry</p>
   <p class="wordmark f1" style="letter-spacing:.18em;opacity:.9;margin-top:-.8rem;color:var(--gold)">Adam Morris</p>
   <h1 class="hero-title f2">Operando PEFC<br>Visualiser</h1>
-  <p class="hero-sub f2">Explore the neutron-transparent fuel cell in 3D<br>or visualise it live with your camera.</p>
+  <p class="hero-sub f2">Explore the neutron-transparent fuel cell and QENS candlestick assembly in 3D<br>or visualise them live with your camera.</p>
 
   <div class="mode-tabs f3">
     <button class="mode-tab on" id="tab-3d" onclick="setMode('3d')">🔬 3D Viewer</button>
     <button class="mode-tab"   id="tab-ar" onclick="setMode('ar')">📷 AR Camera</button>
   </div>
 
-  <div class="model-grid f4" id="model-grid-3d">
+  <div class="model-grid f4" id="model-grid-3d" style="grid-template-columns:1fr 1fr 1fr">
     <button class="model-btn on" onclick="selectModel(this,'explosion')" data-m="explosion">
       <span class="icon">💥</span>
       <span class="lbl">Exploded View</span>
@@ -376,6 +378,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
       <span class="icon">⚙️</span>
       <span class="lbl">Complete Assembly</span>
       <span class="desc">Full assembled PEFC stack</span>
+    </button>
+    <button class="model-btn" onclick="selectModel(this,'candlestick')" data-m="candlestick">
+      <span class="icon">🕯️</span>
+      <span class="lbl">QENS Candlestick</span>
+      <span class="desc">IRIS candlestick · KF16 ports</span>
     </button>
   </div>
 
@@ -442,7 +449,31 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
         <button class="qbtn" onclick="isolate('cathode')">Cathode Only</button>
       </div>
     </div>
-  </div>
+
+    <!-- QENS Candlestick component toggles — shown only when candlestick model is active -->
+    <div class="ctrl-section" id="candlestick-ctrl" style="display:none">
+      <span class="ctrl-label">Candlestick Components</span>
+      <div class="comp-btns-wrap">
+        <button class="cbtn on" data-comp="cs_anode"           onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(160,200,240,.18);--cbtn-on-border:rgba(160,200,240,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#a0c4e8;margin-right:4px;vertical-align:middle"></span>Anode Plate</button>
+        <button class="cbtn on" data-comp="cs_cathode"         onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(160,200,240,.18);--cbtn-on-border:rgba(160,200,240,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#a0c4e8;margin-right:4px;vertical-align:middle"></span>Cathode Plate</button>
+        <button class="cbtn on" data-comp="cs_anode_puck"      onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(160,200,240,.14);--cbtn-on-border:rgba(160,200,240,.4)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#8ab4d4;margin-right:4px;vertical-align:middle"></span>Anode Puck</button>
+        <button class="cbtn on" data-comp="cs_cathode_puck"    onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(160,200,240,.14);--cbtn-on-border:rgba(160,200,240,.4)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#8ab4d4;margin-right:4px;vertical-align:middle"></span>Cathode Puck</button>
+        <button class="cbtn on" data-comp="cs_fasteners"       onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(190,190,200,.18);--cbtn-on-border:rgba(190,190,200,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#c0bfc8;margin-right:4px;vertical-align:middle"></span>Fasteners</button>
+        <button class="cbtn on" data-comp="cs_bushings"        onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(200,200,200,.12);--cbtn-on-border:rgba(200,200,200,.4)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#c8c8c8;margin-right:4px;vertical-align:middle"></span>Bolt Bushings</button>
+        <button class="cbtn on" data-comp="cs_swagelok_anode"  onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(190,190,200,.18);--cbtn-on-border:rgba(190,190,200,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#b8bcc4;margin-right:4px;vertical-align:middle"></span>Swagelok Anode</button>
+        <button class="cbtn on" data-comp="cs_swagelok_cathode"onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(190,190,200,.18);--cbtn-on-border:rgba(190,190,200,.5)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#b8bcc4;margin-right:4px;vertical-align:middle"></span>Swagelok Cathode</button>
+        <button class="cbtn on" data-comp="cs_cables"          onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(255,200,100,.14);--cbtn-on-border:rgba(255,200,100,.4)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#f0c060;margin-right:4px;vertical-align:middle"></span>Cable Attachments</button>
+        <button class="cbtn on" data-comp="cs_kf16_body"       onclick="toggleComp(this)" style="--cbtn-on-bg:rgba(168,127,220,.16);--cbtn-on-border:rgba(168,127,220,.45)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#a87fdc;margin-right:4px;vertical-align:middle"></span>KF16 / Candlestick Body</button>
+      </div>
+      <div class="qbtns">
+        <button class="qbtn" onclick="showAll()">Show All</button>
+        <button class="qbtn" onclick="hideAll()">Hide All</button>
+        <button class="qbtn" onclick="isolate('cs_anode')">Anode Only</button>
+        <button class="qbtn" onclick="isolate('cs_cathode')">Cathode Only</button>
+        <button class="qbtn" onclick="isolate('cs_kf16_body')">KF16 Only</button>
+      </div>
+    </div>
+  </div><!-- /viewer-footer -->
 </div>
 
 <!-- CAMERA OVERLAY (AR)
@@ -495,14 +526,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
     <!-- Info card (slides up) -->
     <div id="ar-card">
       <button id="ar-card-close" onclick="document.getElementById('ar-card').classList.remove('show')">✕</button>
-      <h3>Full Cell Assembly</h3>
-      <p class="ar-desc">Complete MEA stack with Al bipolar plates. Active area 30×30 mm2. 6 mm Al neutron-transparent window.</p>
-      <div class="ar-specs">
-        <span class="ar-stat"><span class="sk">Technique</span><span class="sv">SANS + SAXS + QENS</span></span>
-        <span class="ar-stat"><span class="sk">Active area</span><span class="sv">30×30 mm2</span></span>
-        <span class="ar-stat"><span class="sk">Gas inlets</span><span class="sv">4× Swagelok ¼″</span></span>
-        <span class="ar-stat"><span class="sk">Window</span><span class="sv">6 mm Al</span></span>
-        <span class="ar-stat"><span class="sk">Fasteners</span><span class="sv">8× M4 + PTFE</span></span>
+      <!-- PEFC card content -->
+      <div id="ar-card-pefc">
+        <h3>Full Cell Assembly</h3>
+        <p class="ar-desc">Complete MEA stack with Al bipolar plates. Active area 30×30 mm². 6 mm Al neutron-transparent window.</p>
+        <div class="ar-specs">
+          <span class="ar-stat"><span class="sk">Technique</span><span class="sv">SANS + SAXS + QENS</span></span>
+          <span class="ar-stat"><span class="sk">Active area</span><span class="sv">30×30 mm²</span></span>
+          <span class="ar-stat"><span class="sk">Gas inlets</span><span class="sv">4× Swagelok ¼″</span></span>
+          <span class="ar-stat"><span class="sk">Window</span><span class="sv">6 mm Al</span></span>
+          <span class="ar-stat"><span class="sk">Fasteners</span><span class="sv">8× M4 + PTFE</span></span>
+        </div>
+      </div>
+      <!-- Candlestick card content -->
+      <div id="ar-card-cs" style="display:none">
+        <h3>QENS Candlestick — IRIS KF16</h3>
+        <p class="ar-desc">GKD-000091 operando PEFC candlestick concept for the IRIS backscattering spectrometer at ISIS. KF16 ports interface directly with the IRIS sample environment gas lines.</p>
+        <div class="ar-specs">
+          <span class="ar-stat"><span class="sk">Assembly</span><span class="sv">GKD-000091</span></span>
+          <span class="ar-stat"><span class="sk">Instrument</span><span class="sv">IRIS, ISIS</span></span>
+          <span class="ar-stat"><span class="sk">Gas ports</span><span class="sv">4× KF16</span></span>
+          <span class="ar-stat"><span class="sk">Technique</span><span class="sv">QENS</span></span>
+          <span class="ar-stat"><span class="sk">Plates</span><span class="sv">Al 6082</span></span>
+        </div>
       </div>
     </div>
 
@@ -546,8 +592,9 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 const MODELS_PATH = './models/';
 
 const CFG = {
-  explosion: { name: 'Exploded View',     file: 'pefc-explosion.glb' },
-  complete:  { name: 'Complete Assembly', file: 'pefc-complete.glb'  },
+  explosion:   { name: 'Exploded View',                    file: 'pefc-explosion.glb'   },
+  complete:    { name: 'Complete Assembly',                 file: 'pefc-complete.glb'    },
+  candlestick: { name: 'QENS Candlestick — IRIS KF16',     file: 'candlestick.glb'      },
 };
 
 // ── ORIENTATION ─────────────────────────────────────────
@@ -561,6 +608,7 @@ const MODEL_RZ = 0;
 
 // ── COMPONENT NODE MAPPING ──────────────────────────────
 // Each key maps to substrings tested against GLB node names (case-sensitive, partial match)
+// PEFC models (explosion / complete)
 const COMP_NODES = {
   anode_puck:       ['Anode Sealing Puck', 'Anode Seal Puck', 'Anode Puck'],
   cathode_puck:     ['Cathode Sealing Puck', 'Cathode Seal Puck', 'Cathode Puck'],
@@ -574,6 +622,25 @@ const COMP_NODES = {
   fasteners:        ['Fastener', 'Bolt', 'Screw'],
 };
 
+// Candlestick assembly (IRIS KF16) — node names from STP PRODUCT entries
+const COMP_NODES_CS = {
+  cs_anode:            ['Anode'],
+  cs_cathode:          ['Catode', 'Cathode'],
+  cs_anode_puck:       ['Anode Sealing Puck', 'Anode Seal Puck', 'Anode Puck'],
+  cs_cathode_puck:     ['Cathode Sealing Puck', 'Cathode Seal Puck'],
+  cs_fasteners:        ['Fasteners', 'Fastener', 'Screw', 'Socket Head', '91292'],
+  cs_bushings:         ['Bolt Brushings', 'Bolt Bushings', 'Brushing', 'Bushing', 'Bush'],
+  cs_swagelok_anode:   ['Swagelock Male Anode', 'Swagelok Male Anode'],
+  cs_swagelok_cathode: ['Swagelock Cathode', 'Swagelok Cathode'],
+  cs_cables:           ['cable attachments', 'cable attachment'],
+  cs_kf16_body:        ['GKD-000091', 'GKD-000090', 'GKD-000089', 'GKD-000096',
+                        'GKD-000097', 'GKD-000098', 'GKD-000099',
+                        'GKD-000112', 'GKD-000113', 'GKD-000114',
+                        'SP-014285',  'SP-026832',  'SP-032556',  'SP-028097',
+                        'SP-009615',  'SP-024958',
+                        'SI-4108',    'SI-4201',    'PRODUCT_ID_1'],
+};
+
 const COMP_INFO = {
   anode:            { title: 'Anode Plate',           desc: 'Aluminium 6082 bipolar plate with serpentine flow field. 30x30 mm2 active area.',                                    specs: [['Material','Al 6082'],['Window','6 mm Al'],['Function','Current collection + gas distribution']] },
   cathode:          { title: 'Cathode Plate',          desc: 'Mirror of anode plate. SAXS sealing puck on outer face enables simultaneous X-ray measurement.',                                        specs: [['Material','Al 6082'],['Feature','SAXS sealing puck face'],['Function','Current collection + gas distribution']] },
@@ -585,6 +652,18 @@ const COMP_INFO = {
   swagelok_cathode: { title: 'Swagelok — Cathode',     desc: 'SS-400-1/4 connectors deliver humidified air to the cathode flow field. Mounted on top in QENS orientation.',                       specs: [['Part','SS-400-1/4'],['Fluid','Humidified air'],['Count','2 (inlet + outlet)']] },
   anode_puck:       { title: 'Anode Sealing Puck',     desc: 'Al 6082 sealing puck on the outer anode face. Provides gas tightness for QENS, and X-ray window for SAXS',                  specs: [['Material','Al 6082'],['Function','Beam window + sealing']] },
   cathode_puck:     { title: 'Cathode Sealing Puck',   desc: 'Matched sealing puck on cathode outer face. Together with anode puck defines the X-ray/neutron transmission path through the cell.',    specs: [['Material','Al 6082'],['Function','Beam window + sealing']] },
+
+  // ── Candlestick assembly ──────────────────────────────
+  cs_anode:            { title: 'Anode Plate (Candlestick)',        desc: 'Aluminium 6082 bipolar plate adapted for the IRIS candlestick geometry. Serpentine flow field machined for operando QENS measurements.',      specs: [['Material','Al 6082'],['Instrument','IRIS, ISIS'],['Technique','QENS']] },
+  cs_cathode:          { title: 'Cathode Plate (Candlestick)',      desc: 'Mirror of the anode plate. The candlestick geometry allows the cell to be inserted vertically into the IRIS spectrometer sample stick.',       specs: [['Material','Al 6082'],['Orientation','Vertical (candlestick)'],['Technique','QENS']] },
+  cs_anode_puck:       { title: 'Anode Sealing Puck',              desc: 'Outer sealing puck on the anode side. Defines the neutron beam window through the cell and provides gas-tight sealing for backpressure operation.', specs: [['Material','Al 6082'],['Function','Neutron window + gas seal']] },
+  cs_cathode_puck:     { title: 'Cathode Sealing Puck',            desc: 'Outer sealing puck on the cathode side. Paired with anode puck to define the full neutron transmission path for QENS on IRIS.',                 specs: [['Material','Al 6082'],['Function','Neutron window + gas seal']] },
+  cs_fasteners:        { title: 'Fasteners (M4 SS)',                desc: '18-8 stainless steel M4 socket head screws provide uniform compression. PTFE bushings prevent electrical contact with Al plates.',              specs: [['Part','91292A354'],['Material','18-8 SS'],['Thread','M4']] },
+  cs_bushings:         { title: 'Bolt Bushings (PTFE)',             desc: 'PTFE bushings electrically isolate the SS fasteners from the aluminium body, preventing short-circuit current paths through the mechanical assembly.', specs: [['Material','PTFE'],['Function','Electrical isolation']] },
+  cs_swagelok_anode:   { title: 'Swagelok — Anode (KF16)',         desc: 'Swagelok male anode fittings adapted for the KF16 port geometry of the IRIS candlestick. Supply humidified H₂ to the anode flow field.',      specs: [['Ports','KF16'],['Fluid','Humidified H₂'],['Count','2']] },
+  cs_swagelok_cathode: { title: 'Swagelok — Cathode (KF16)',       desc: 'Swagelok cathode fittings on the KF16 ports. Deliver humidified air to the cathode. KF16 flanges interface directly with the IRIS cryostat/furnace gas lines.', specs: [['Ports','KF16'],['Fluid','Humidified air'],['Count','2']] },
+  cs_cables:           { title: 'Cable Attachments',               desc: 'Current-carrying cable attachment points on the anode and cathode current collectors. Designed for the restricted access of the IRIS sample environment stick.', specs: [['Type','Press-fit / clamp'],['Function','Current collection'],['Access','Restricted (sample stick)']] },
+  cs_kf16_body:        { title: 'Candlestick Body (KF16 assembly)', desc: 'The GKD-000091 candlestick body assembly. KF16 vacuum flanges on all gas ports allow direct connection to the IRIS spectrometer sample environment without additional adapters. Concept design for operando QENS.', specs: [['Assembly','GKD-000091'],['Instrument','IRIS (ISIS Neutron Source)'],['Ports','4× KF16'],['Technique','Quasielastic Neutron Scattering']] },
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -592,6 +671,7 @@ const COMP_INFO = {
 // ═══════════════════════════════════════════════════════════
 let appMode      = '3d';
 let currentModel = 'explosion';
+let activeCompNodes = COMP_NODES; // switches to COMP_NODES_CS for candlestick
 
 // ── 3D viewer ────────────────────────────────────────────
 let R3, S3, C3, ctrl3, animId3, isRunning3 = false;
@@ -713,15 +793,16 @@ function applyMaterials(model) {
   toRemove.forEach(ch => ch.removeFromParent());
 }
 
-function buildGroups(model) {
-  const g = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, []]));
+function buildGroups(model, nodeMap) {
+  nodeMap = nodeMap || activeCompNodes;
+  const g = Object.fromEntries(Object.keys(nodeMap).map(k => [k, []]));
   // BFS: find highest-level node matching each pattern (stops descending once matched)
   const queue = [...model.children];
   while (queue.length) {
     const node = queue.shift();
     if (!node.name) { if (node.children) queue.push(...node.children); continue; }
     let matched = false;
-    for (const [comp, pats] of Object.entries(COMP_NODES)) {
+    for (const [comp, pats] of Object.entries(nodeMap)) {
       if (pats.some(p => node.name.includes(p))) { g[comp].push(node); matched = true; break; }
     }
     if (!matched && node.children) queue.push(...node.children);
@@ -854,7 +935,18 @@ function onResize3() {
 function loadGLB3(key) {
   if (glbRoot3) { S3.remove(glbRoot3); glbRoot3 = null; }
   topGroups3 = {}; xparts3 = []; xFac3 = 0; xTgt3 = 0;
-  compVis3 = Object.fromEntries(Object.keys(COMP_NODES).map(k => [k, true]));
+
+  // ── Switch component panel & node map based on model ──
+  const isCandlestick = key === 'candlestick';
+  activeCompNodes = isCandlestick ? COMP_NODES_CS : COMP_NODES;
+
+  // Show/hide the correct toggle panel
+  document.getElementById('candlestick-ctrl').style.display = isCandlestick ? 'block' : 'none';
+  // Hide the PEFC toggle buttons section when showing candlestick and vice-versa
+  const pfcCtrl = document.querySelector('#viewer-footer .ctrl-section:nth-child(2)');
+  if (pfcCtrl) pfcCtrl.style.display = isCandlestick ? 'none' : 'block';
+
+  compVis3 = Object.fromEntries(Object.keys(activeCompNodes).map(k => [k, true]));
   document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
 
   const glbUrl = MODELS_PATH + CFG[key].file;
@@ -864,10 +956,9 @@ function loadGLB3(key) {
     gltf => {
       const model = gltf.scene;
 
-      // ── Standard PEFC models ──────────────────────────────────────────────
       applyMaterials(model);
       normaliseModel(model, 12);
-      topGroups3 = buildGroups(model);
+      topGroups3 = buildGroups(model, activeCompNodes);
       xparts3    = buildXplodeParts(model, topGroups3);
       glbRoot3   = model;
       S3.add(model);
@@ -881,7 +972,6 @@ function loadGLB3(key) {
       ctrl3.target.set(0, 0, 0);
       ctrl3.update();
 
-      // Hide loader
       document.getElementById('vload').classList.add('hidden');
     },
     xhr => {
@@ -893,7 +983,10 @@ function loadGLB3(key) {
       document.getElementById('vload').classList.add('hidden');
       document.getElementById('verr').style.display = 'block';
       document.getElementById('verr-txt').textContent =
-        `Error: ${err?.message || err}\n\nFile: ${CFG[key].file}`;
+        `Error loading: ${CFG[key].file}\n\n` +
+        (key === 'candlestick'
+          ? '⚠️ STP → GLB conversion required.\n\nConvert candlestick.stp → candlestick.glb\nusing Blender or CAD Exchanger, then place\nthe file in the models/ folder.\n\nSee README for full conversion steps.'
+          : `${err?.message || err}`);
     }
   );
 }
@@ -939,6 +1032,11 @@ function stopViewer3() {
   document.getElementById('explode-slider').value = 0;
   document.getElementById('xpct').textContent = '0%';
   document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on'));
+  // Reset both component panels to their default visibility
+  document.getElementById('candlestick-ctrl').style.display = 'none';
+  const pfcCtrl = document.querySelector('#viewer-footer .ctrl-section:nth-child(2)');
+  if (pfcCtrl) pfcCtrl.style.display = 'block';
+  activeCompNodes = COMP_NODES;
   closeInfo();
 }
 
@@ -960,15 +1058,15 @@ window.toggleComp = btn => {
   if (compVis3[c] && COMP_INFO[c]) openInfo(COMP_INFO[c]);
 };
 window.showAll = () => {
-  Object.keys(compVis3).forEach(k => compVis3[k] = true);
+  Object.keys(activeCompNodes).forEach(k => compVis3[k] = true);
   document.querySelectorAll('.cbtn').forEach(b => b.classList.add('on')); applyCompVis3();
 };
 window.hideAll = () => {
-  Object.keys(compVis3).forEach(k => compVis3[k] = false);
+  Object.keys(activeCompNodes).forEach(k => compVis3[k] = false);
   document.querySelectorAll('.cbtn').forEach(b => b.classList.remove('on')); applyCompVis3();
 };
 window.isolate = comp => {
-  Object.keys(compVis3).forEach(k => compVis3[k] = k === comp);
+  Object.keys(activeCompNodes).forEach(k => compVis3[k] = k === comp);
   document.querySelectorAll('.cbtn').forEach(b => b.classList.toggle('on', b.dataset.comp === comp));
   applyCompVis3();
 };
@@ -1167,8 +1265,19 @@ function setupARRenderer() {
 function loadGLBForAR() {
   if (arGlbRoot) return; // already loaded
 
+  // Switch AR info card to match selected model
+  const isCandlestick = currentModel === 'candlestick';
+  document.getElementById('ar-card-pefc').style.display = isCandlestick ? 'none'  : 'block';
+  document.getElementById('ar-card-cs').style.display   = isCandlestick ? 'block' : 'none';
+  document.getElementById('ar-header').querySelector('h1').textContent =
+    isCandlestick ? 'QENS Candlestick' : 'Operando PEFC';
+  document.getElementById('ar-sub').textContent =
+    isCandlestick ? 'IRIS KF16 · Drag to rotate · Pinch to scale' : 'Drag to rotate · Pinch to scale';
+
+  const nodeMap = isCandlestick ? COMP_NODES_CS : COMP_NODES;
+
   new GLTFLoader().load(
-    MODELS_PATH + CFG['explosion'].file,
+    MODELS_PATH + CFG[currentModel === 'candlestick' ? 'candlestick' : 'explosion'].file,
     gltf => {
       const model = gltf.scene;
 
@@ -1198,10 +1307,10 @@ function loadGLBForAR() {
       });
       toRemove.forEach(c => c.removeFromParent());
 
-      // Build explode parts
+      // Build explode parts using the correct node map
       model.updateWorldMatrix(true, true);
       const invMat = new THREE.Matrix4().copy(model.matrixWorld).invert();
-      const groups = buildGroups(model);
+      const groups = buildGroups(model, nodeMap);
       arXparts = [];
       for (const nodes of Object.values(groups)) {
         nodes.forEach(node => {
