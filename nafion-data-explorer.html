@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<title>Nafion 117 · SANS / SAXS Fit Explorer</title>
+<script src="https://cdn.plot.ly/plotly-basic-2.27.0.min.js" charset="utf-8"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --dark:#001428; --accent:#4ba3c3; --gold:#c8a951; --purple:#a87fdc;
+  --panel:rgba(0,16,40,0.93); --border:rgba(75,163,195,0.2);
+  --sans:'SF Pro Text',-apple-system,'Helvetica Neue',sans-serif;
+  --serif:'Georgia','Times New Roman',serif;
+}
+html,body{width:100%;min-height:100%;background:#000;font-family:var(--sans);color:#fff}
+body{background:radial-gradient(ellipse at 20% 12%,#001c38 0%,#000410 78%);min-height:100vh;display:flex;flex-direction:column}
+header{flex-shrink:0;padding:.7rem 1rem .6rem;background:rgba(0,12,30,.95);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:.6rem;backdrop-filter:blur(10px);position:sticky;top:0;z-index:20}
+.h-left{min-width:0}
+.eyebrow{font-family:var(--serif);font-size:8px;letter-spacing:.32em;color:var(--gold);text-transform:uppercase;opacity:.7;display:block;margin-bottom:1px}
+header h1{font-family:var(--serif);font-size:14px;font-weight:normal;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbtn{background:rgba(75,163,195,.1);border:1px solid rgba(75,163,195,.28);border-radius:8px;color:var(--accent);
+  padding:.4rem .8rem;font-size:11px;font-family:var(--sans);cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap;flex-shrink:0}
+.hbtn:hover{background:rgba(75,163,195,.2)}
+main{flex:1;width:100%;max-width:1180px;margin:0 auto;padding:1rem;display:grid;grid-template-columns:280px 1fr;gap:1rem;align-items:start}
+@media(max-width:820px){main{grid-template-columns:1fr;padding:.75rem}}
+.rail{display:flex;flex-direction:column;gap:.85rem;position:sticky;top:64px}
+@media(max-width:820px){.rail{position:static}}
+.card{background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:14px;padding:.85rem .9rem}
+.card h3{font-family:var(--serif);font-weight:normal;font-size:11px;color:var(--accent);letter-spacing:.04em;margin-bottom:.6rem;text-transform:uppercase}
+.seg{display:flex;gap:.35rem;flex-wrap:wrap}
+.seg.col{flex-direction:column}
+.opt{flex:1;min-width:0;padding:.45rem .5rem;border-radius:9px;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:transparent;
+  color:rgba(255,255,255,.55);font-size:11px;font-family:var(--sans);transition:all .18s;text-align:center;white-space:nowrap}
+.opt:hover{border-color:rgba(255,255,255,.25)}
+.opt.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.opt.disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+.opt.chip{display:flex;align-items:center;gap:.4rem;justify-content:flex-start}
+.opt.chip .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;opacity:.45;transition:opacity .18s}
+.opt.chip.on .dot{opacity:1}
+.opt.chip.on{color:#fff}
+.opt.style{display:flex;align-items:center;gap:.45rem;justify-content:flex-start}
+.opt.style .gl{width:22px;height:0;border-top:2px solid rgba(255,255,255,.6);flex-shrink:0}
+.badge{display:inline-block;padding:.3rem .6rem;border-radius:8px;background:rgba(200,169,81,.12);
+  border:1px solid rgba(200,169,81,.3);color:var(--gold);font-size:11px}
+.hint{font-size:9.5px;color:rgba(255,255,255,.3);line-height:1.5;margin-top:.5rem}
+.stage{display:flex;flex-direction:column;gap:.85rem;min-width:0}
+#plot{background:rgba(0,8,22,.55);border:1px solid var(--border);border-radius:14px;width:100%;height:clamp(380px,58vh,580px)}
+.caption{background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:14px;padding:.95rem 1.05rem}
+.caption h3{font-family:var(--serif);font-weight:normal;font-size:13px;color:#fff;margin-bottom:.4rem}
+.caption p{font-size:12px;line-height:1.65;color:rgba(255,255,255,.62)}
+.specs{display:flex;flex-wrap:wrap;gap:.4rem .5rem;margin-top:.7rem}
+.spec{background:rgba(75,163,195,.08);border:1px solid var(--border);border-radius:7px;padding:.28rem .55rem;font-size:10.5px;color:rgba(255,255,255,.75);font-variant-numeric:tabular-nums}
+.spec b{color:var(--gold);font-weight:600}
+.banner{border-radius:10px;padding:.55rem .85rem;font-size:10.5px;line-height:1.55}
+.banner.note{background:rgba(200,169,81,.08);border:1px solid rgba(200,169,81,.25);color:rgba(200,169,81,.92)}
+.banner.note b{color:var(--gold)}
+#loaderr{display:none;text-align:center;padding:2.5rem 1rem;color:rgba(255,255,255,.7)}
+#loaderr h3{font-family:var(--serif);font-weight:normal;font-size:16px;color:#fff;margin-bottom:.6rem}
+#loaderr p{font-size:12px;line-height:1.7;max-width:460px;margin:0 auto 1rem}
+#loaderr code{background:rgba(75,163,195,.12);padding:.1rem .35rem;border-radius:4px;color:var(--accent);font-size:11px}
+.filebtn{display:inline-block;background:var(--accent);color:#fff;border:none;border-radius:50px;padding:.6rem 1.6rem;font-size:12px;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div class="h-left"><span class="eyebrow">ISIS · IRIS QENS</span><h1 id="title">Nafion 117 — SANS / SAXS fits</h1></div>
+  <a class="hbtn" href="index-5.html">← 3D / AR viewer</a>
+</header>
+
+<main>
+  <aside class="rail" id="rail"><!-- controls injected after data loads --></aside>
+  <section class="stage">
+    <div id="loaderr">
+      <h3>Couldn't load the data file</h3>
+      <p>Expected it at <code id="expected-path"></code>. On <b>GitHub Pages</b> this loads automatically once the CSV is in that folder. Opening the HTML directly from disk (file://) blocks the fetch — use the picker below to load it locally, or run a local server.</p>
+      <input type="file" id="fileInput" accept=".csv" style="display:none">
+      <button class="filebtn" onclick="document.getElementById('fileInput').click()">Choose CSV file</button>
+    </div>
+    <div id="content" style="display:none">
+      <div class="banner note" id="featureNote"></div>
+      <div id="plot"></div>
+      <div class="caption" id="caption"><h3>—</h3><p>—</p><div class="specs"></div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   DATA SOURCE
+   Put your CSV(s) in a /data folder next to this HTML and list them here.
+   Add the ionomer-peak export later and it will appear automatically.
+   ════════════════════════════════════════════════════════════════════════ */
+const DATA_URLS = [
+  "./data/global_merged_sans_saxs.csv",   // matrix knee (SANS + SAXS)
+  "./data/master_fits_ionomer.csv",       // ionomer peak (merged SANS+SAXS)
+];
+
+/* ---- fixed contrast palette; everything else is discovered from the data ---- */
+const CONTRAST_COLORS = { H2O:"#4ba3c3", D2O:"#c8a951", NCMW:"#a87fdc" };
+const DASH_POOL = ["solid","dash","dot","dashdot","longdash"];
+const SYM_POOL  = ["circle","square","diamond","triangle-up","cross","x"];
+
+/* ---- tiny CSV parser (handles quoted fields, \r\n) ---- */
+function parseCSV(text){
+  const rows=[]; let i=0,f="",row=[],q=false;
+  const pushF=()=>{row.push(f);f="";}; const pushR=()=>{pushF();rows.push(row);row=[];};
+  while(i<text.length){
+    const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=ch; }
+    else { if(ch==='"')q=true; else if(ch===',')pushF(); else if(ch==='\n')pushR();
+           else if(ch!=='\r')f+=ch; }
+    i++;
+  }
+  if(f.length||row.length)pushR();
+  const hdr=rows.shift().map(h=>h.trim());
+  return rows.filter(r=>r.length>1).map(r=>Object.fromEntries(hdr.map((h,j)=>[h,r[j]])));
+}
+
+/* ---- turn raw rows into typed points (dimensions parsed from path/name/filename) ---- */
+function techniqueOf(p){ const m=(p||"").match(/(SANS|SAXS)\\+Fitting/i); return m?m[1].toUpperCase():"?"; }
+function featureOf(p){ const s=(p||"").toLowerCase(); if(s.includes("ionomer"))return "ionomer peak"; if(s.includes("matrix"))return "matrix knee"; return "peak"; }
+function rhOf(fn){ const m=(fn||"").match(/(\d+(?:\.\d+)?)\s*RH/i); return m?parseFloat(m[1]):null; }
+function normMedium(s){ const m=(s||"").match(/(NCMW|NMW|H2O|D2O)/i); if(!m)return null; const u=m[1].toUpperCase(); return u==="NMW"?"NCMW":u; }
+function splitSeries(name){
+  const contrast=normMedium(name)||"?";
+  const m=(name||"").match(/(H2O|D2O|NCMW|NMW)/i);
+  const prefix=m?(name.slice(0,m.index).replace(/_+$/,"")||"–"):name;
+  return {contrast,prefix};
+}
+function num(v){ const x=parseFloat(v); return Number.isFinite(x)?x:null; }
+function nonempty(v){ return v!=null && String(v).trim()!=="" ? String(v).trim() : null; }
+
+function buildPoints(raw){
+  return raw.map(r=>{
+    // Prefer explicit columns when the merge script provided them; otherwise parse the path/name.
+    const technique = nonempty(r.technique) || techniqueOf(r.source_folder_path);
+    const feature   = nonempty(r.feature)   || featureOf(r.source_folder_path);
+    const contrast  = normMedium(r.medium)  || splitSeries(r.source_folder_name).contrast;
+    const prefix    = nonempty(r.temperature) || splitSeries(r.source_folder_name).prefix;
+    const q=num(r.peak_pos), qe=num(r.peak_pos_err), hw=num(r.peak_hwhm), hwe=num(r.peak_hwhm_err);
+    const d=num(r.d_nm), xi=num(r.xi_nm_1_over_hwhm);
+    // poor-fit heuristic: implausible width or error swamping the value
+    const bad = !q||!hw || hw>0.2 || (qe!=null&&q&&qe/q>0.3) || (hwe!=null&&hw&&hwe/hw>0.6);
+    return {
+      technique, feature,
+      series:`${prefix}_${contrast}`, prefix, contrast,
+      rh:rhOf(r.filename), q,qe,hw,hwe,d,xi,
+      d_err: (d&&q&&qe!=null)? d*(qe/q):null,
+      xi_err:(xi&&hw&&hwe!=null)? xi*(hwe/hw):null,
+      bad
+    };
+  }).filter(p=>p.rh!=null && p.q!=null);
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+let PTS=[], DIM={}, STYLE={};
+const S={ technique:null, feature:null, quantity:"position", unit:"q",
+          contrasts:{}, prefixes:{}, hidePoor:true };
+
+function uniq(arr){ return [...new Set(arr)]; }
+function discover(){
+  DIM.techniques=uniq(PTS.map(p=>p.technique)).sort();
+  DIM.features  =uniq(PTS.map(p=>p.feature)).sort();
+  DIM.contrasts =uniq(PTS.map(p=>p.contrast)).sort((a,b)=>["H2O","D2O","NCMW"].indexOf(a)-["H2O","D2O","NCMW"].indexOf(b));
+  DIM.prefixes  =uniq(PTS.map(p=>p.prefix)).sort();
+  S.feature   = DIM.features.includes("ionomer peak")?"ionomer peak":DIM.features[0];
+  S.technique = DIM.techniques.includes("SAXS")?"SAXS":DIM.techniques[0];
+  DIM.contrasts.forEach(c=>S.contrasts[c]=true);
+  DIM.prefixes.forEach(p=>S.prefixes[p]=true);
+  STYLE.dash={}; STYLE.sym={};
+  DIM.prefixes.forEach((p,i)=>{ STYLE.dash[p]=DASH_POOL[i%DASH_POOL.length]; STYLE.sym[p]=SYM_POOL[i%SYM_POOL.length]; });
+  correctSelections();   // make sure the starting technique/contrasts exist for the starting feature
+}
+
+/* ── build the control rail dynamically ── */
+function el(tag,cls,html){ const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
+function card(title){ const c=el("div","card"); c.appendChild(el("h3",null,title)); return c; }
+
+function availFor(feature){
+  const sub=PTS.filter(p=>p.feature===feature);
+  return { techniques:new Set(sub.map(p=>p.technique)),
+           contrasts:new Set(sub.map(p=>p.contrast)),
+           prefixes:new Set(sub.map(p=>p.prefix)) };
+}
+function correctSelections(){
+  const a=availFor(S.feature);
+  if(!a.techniques.has(S.technique)) S.technique=[...a.techniques].sort()[0];
+  if(!DIM.contrasts.some(c=>S.contrasts[c]&&a.contrasts.has(c))) DIM.contrasts.forEach(c=>S.contrasts[c]=a.contrasts.has(c));
+  if(!DIM.prefixes.some(p=>S.prefixes[p]&&a.prefixes.has(p)))   DIM.prefixes.forEach(p=>S.prefixes[p]=a.prefixes.has(p));
+}
+
+function buildRail(){
+  const rail=document.getElementById("rail"); rail.innerHTML="";
+  const avail=availFor(S.feature);
+
+  if(DIM.features.length>1){
+    const c=card("Feature"); const seg=el("div","seg col");
+    DIM.features.forEach(f=>{ const b=el("button","opt"+(f===S.feature?" on":""),cap(f));
+      b.onclick=()=>{ S.feature=f; correctSelections(); buildRail(); render(); }; seg.appendChild(b);});
+    c.appendChild(seg); rail.appendChild(c);
+  } else {
+    const c=card("Feature"); c.appendChild(el("span","badge",cap(S.feature))); rail.appendChild(c);
+  }
+
+  if(DIM.techniques.length>1){
+    const c=card("Technique"); const seg=el("div","seg");
+    DIM.techniques.forEach(t=>{ const ok=avail.techniques.has(t);
+      const b=el("button","opt"+(t===S.technique?" on":"")+(ok?"":" disabled"),t);
+      if(ok) b.onclick=()=>{S.technique=t;setActive(seg,b);render();}; seg.appendChild(b);});
+    c.appendChild(seg); rail.appendChild(c);
+  }
+
+  { const c=card("Quantity"); const seg=el("div","seg");
+    [["position","Position"],["width","Width"]].forEach(([v,l])=>{ const b=el("button","opt"+(v===S.quantity?" on":""),l); b.onclick=()=>{S.quantity=v;setActive(seg,b);render();}; seg.appendChild(b);});
+    c.appendChild(seg); rail.appendChild(c); }
+
+  { const c=card("Length scale"); const seg=el("div","seg");
+    [["q","Reciprocal (Å⁻¹)"],["d","Real-space (nm)"]].forEach(([v,l])=>{ const b=el("button","opt"+(v===S.unit?" on":""),l); b.onclick=()=>{S.unit=v;setActive(seg,b);render();}; seg.appendChild(b);});
+    c.appendChild(seg); c.appendChild(el("div","hint","Uses the d_nm / ξ columns from your fits.")); rail.appendChild(c); }
+
+  { const c=card("Contrast"); const seg=el("div","seg col");
+    DIM.contrasts.forEach(ct=>{ const col=CONTRAST_COLORS[ct]||"#9fb2c4"; const ok=avail.contrasts.has(ct);
+      const b=el("button","opt chip"+(S.contrasts[ct]?" on":"")+(ok?"":" disabled"),`<span class="dot" style="background:${col}"></span>${labelContrast(ct)}`);
+      b.dataset.c=ct; if(ok) b.onclick=()=>toggle(S.contrasts,ct,b); seg.appendChild(b);});
+    c.appendChild(seg); rail.appendChild(c); }
+
+  if(DIM.prefixes.length>1){ const c=card("Sample set"); const seg=el("div","seg col");
+    DIM.prefixes.forEach(pf=>{ const dash=STYLE.dash[pf]; const ok=avail.prefixes.has(pf);
+      const b=el("button","opt style"+(S.prefixes[pf]?" on":"")+(ok?"":" disabled"),`<span class="gl" style="border-top-style:${dash==='solid'?'solid':dash==='dot'?'dotted':'dashed'}"></span>${pf}`);
+      if(ok) b.onclick=()=>toggle(S.prefixes,pf,b); seg.appendChild(b);});
+    c.appendChild(seg); c.appendChild(el("div","hint","Pretreatment temperature — controls line style.")); rail.appendChild(c); }
+
+  { const c=card("Fit quality"); const seg=el("div","seg");
+    const b=el("button","opt"+(S.hidePoor?" on":""),"Hide poor fits"); b.onclick=()=>{S.hidePoor=!S.hidePoor;b.classList.toggle("on",S.hidePoor);render();};
+    seg.appendChild(b); c.appendChild(seg);
+    c.appendChild(el("div","hint","Drops points with HWHM > 0.2 Å⁻¹ or error larger than the value (failed Lorentzian fits).")); rail.appendChild(c); }
+}
+function setActive(seg,btn){ seg.querySelectorAll(".opt").forEach(b=>b.classList.remove("on")); btn.classList.add("on"); }
+function toggle(map,key,btn){ const on=Object.values(map).filter(Boolean).length; if(map[key]&&on===1)return; map[key]=!map[key]; btn.classList.toggle("on",map[key]); render(); }
+function cap(s){ return s.replace(/\b\w/g,c=>c.toUpperCase()); }
+function labelContrast(c){ return c==="H2O"?"H₂O":c==="D2O"?"D₂O":c==="NCMW"?"Nafion CMW":c; }
+
+/* ── plotting ── */
+function baseLayout(){
+  return { paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
+    font:{color:"rgba(255,255,255,.8)",family:"'SF Pro Text',-apple-system,'Helvetica Neue',sans-serif",size:12},
+    margin:{l:66,r:18,t:18,b:54},
+    legend:{bgcolor:"rgba(0,12,30,.6)",bordercolor:"rgba(75,163,195,.25)",borderwidth:1,font:{size:10.5},x:1,xanchor:"right",y:1},
+    xaxis:{gridcolor:"rgba(75,163,195,.12)",zeroline:false,linecolor:"rgba(75,163,195,.4)",ticks:"outside",tickcolor:"rgba(75,163,195,.4)",automargin:true},
+    yaxis:{gridcolor:"rgba(75,163,195,.12)",zeroline:false,linecolor:"rgba(75,163,195,.4)",ticks:"outside",tickcolor:"rgba(75,163,195,.4)",automargin:true},
+    hovermode:"closest" };
+}
+const CONFIG={responsive:true,displaylogo:false,modeBarButtonsToRemove:["lasso2d","select2d","autoScale2d","toggleSpikelines"],
+  toImageButtonOptions:{format:"png",filename:"nafion_fit",scale:2}};
+
+function yOf(p){
+  if(S.quantity==="position") return S.unit==="d" ? {y:p.d,e:p.d_err} : {y:p.q,e:p.qe};
+  return S.unit==="d" ? {y:p.xi,e:p.xi_err} : {y:p.hw,e:p.hwe};
+}
+function yTitle(){
+  const f=cap(S.feature);
+  if(S.quantity==="position") return S.unit==="d"?`${f} spacing  d (nm)`:`${f} position  q (Å⁻¹)`;
+  return S.unit==="d"?`${f} correlation length  ξ (nm)`:`${f} HWHM  (Å⁻¹)`;
+}
+
+function render(){
+  const traces=[];
+  const seriesActive = PTS.filter(p=>p.technique===S.technique && p.feature===S.feature
+        && S.contrasts[p.contrast] && S.prefixes[p.prefix] && (!S.hidePoor||!p.bad));
+  const bySeries={};
+  seriesActive.forEach(p=>{ (bySeries[p.series] ||= []).push(p); });
+  Object.keys(bySeries).sort().forEach(sk=>{
+    const pts=bySeries[sk].sort((a,b)=>a.rh-b.rh);
+    const ys=pts.map(yOf);
+    const col=CONTRAST_COLORS[pts[0].contrast]||"#9fb2c4";
+    traces.push({
+      x:pts.map(p=>p.rh), y:ys.map(o=>o.y),
+      error_y:{type:"data",array:ys.map(o=>o.e||0),visible:true,color:col,thickness:1,width:4,opacity:.55},
+      type:"scatter",mode:"lines+markers",name:`${pts[0].prefix} · ${labelContrast(pts[0].contrast)}`,
+      line:{color:col,width:2,dash:STYLE.dash[pts[0].prefix]||"solid"},
+      marker:{color:col,size:8,symbol:STYLE.sym[pts[0].prefix]||"circle",line:{color:"#001428",width:1}},
+      hovertemplate:`%{x}% RH<br>%{y:.3f}<extra>${pts[0].prefix} · ${labelContrast(pts[0].contrast)}</extra>`,
+    });
+  });
+  const L=baseLayout();
+  L.xaxis.title={text:"Relative humidity  (% RH)"};
+  L.yaxis.title={text:yTitle()};
+  Plotly.react("plot",traces,L,CONFIG);
+  caption(seriesActive);
+}
+
+function caption(active){
+  const f=cap(S.feature); let body;
+  if(S.feature.includes("matrix")){
+    body = S.quantity==="position"
+      ? "Matrix-knee position tracks the semicrystalline long period of the PTFE-like backbone. Its shift with hydration reveals whether water swelling perturbs the crystalline scaffold — a movement to lower q (larger d) means the lamellar stacks are pushed apart."
+      : "Matrix-knee width reports the regularity of the semicrystalline domains: a narrower peak (larger ξ) means a more sharply defined, better-correlated long period.";
+  } else {
+    body = S.quantity==="position"
+      ? "Ionomer-peak position gives the characteristic spacing of the hydrated ionic domains; a shift to lower q (larger d) with humidity is the signature of water swelling the ionic clusters."
+      : "Ionomer-peak width reflects the order of the ionic domains — a narrowing peak indicates a more uniform inter-domain spacing.";
+  }
+  // quick summary on the first active series
+  let specs="";
+  const bySeries={}; active.forEach(p=>{(bySeries[p.series] ||= []).push(p);});
+  const first=Object.keys(bySeries).sort()[0];
+  if(first){
+    const pts=bySeries[first].sort((a,b)=>a.rh-b.rh);
+    const a=yOf(pts[0]), b=yOf(pts[pts.length-1]);
+    const u=S.unit==="d"?"nm":"Å⁻¹";
+    specs=`<span class="spec">${pts[0].prefix}·${labelContrast(pts[0].contrast)}: <b>${a.y?.toFixed(2)} → ${b.y?.toFixed(2)} ${u}</b> (RH ${pts[0].rh}→${pts[pts.length-1].rh}%)</span>`
+        +`<span class="spec">series shown: <b>${Object.keys(bySeries).length}</b></span>`
+        +`<span class="spec">points: <b>${active.length}</b></span>`;
+  } else { specs=`<span class="spec">No points for this selection</span>`; }
+  const cap_=document.getElementById("caption");
+  cap_.querySelector("h3").textContent=`${S.technique} · ${f} ${S.quantity==="width"?"width":"position"} vs hydration`;
+  cap_.querySelector("p").textContent=body;
+  cap_.querySelector(".specs").innerHTML=specs;
+}
+
+/* ── boot ── */
+function start(raw){
+  PTS=buildPoints(raw);
+  if(!PTS.length){ showErr(); return; }
+  discover();
+  document.getElementById("loaderr").style.display="none";
+  document.getElementById("content").style.display="";
+  document.getElementById("title").textContent=`Nafion 117 — SANS/SAXS fit explorer`;
+  const fn=document.getElementById("featureNote");
+  fn.innerHTML = `Loaded <b>${DIM.features.map(cap).join("</b> and <b>")}</b> fits across ${DIM.contrasts.length} contrasts and ${DIM.prefixes.length} pretreatments. Use the Feature control to switch between them; options with no data for the chosen feature are dimmed.`;
+  buildRail(); render();
+  window.addEventListener("resize",()=>Plotly.Plots.resize("plot"));
+}
+function showErr(){ document.getElementById("loaderr").style.display="block"; document.getElementById("content").style.display="none";
+  document.getElementById("expected-path").textContent=DATA_URLS.join(", "); }
+
+async function loadAll(){
+  let raw=[], any=false;
+  for(const url of DATA_URLS){
+    try{ const r=await fetch(url); if(!r.ok) continue; raw=raw.concat(parseCSV(await r.text())); any=true; }
+    catch(e){ /* keep trying others */ }
+  }
+  if(any && raw.length) start(raw); else showErr();
+}
+document.getElementById("fileInput").addEventListener("change",ev=>{
+  const file=ev.target.files[0]; if(!file)return;
+  const rd=new FileReader(); rd.onload=()=>start(parseCSV(rd.result)); rd.readAsText(file);
+});
+loadAll();
+</script>
+</body>
+</html>
