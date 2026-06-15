@@ -591,20 +591,29 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 // ═══════════════════════════════════════════════════════════
 const MODELS_PATH = './models/';
 
+// ── ORIENTATION ─────────────────────────────────────────
+// Three.js is Y-up. CAD exports may be Z-up; per-model rotation corrects this.
+// `orient: { rx, ry, rz }` is the Euler rotation (radians, Three.js 'XYZ' order)
+// applied to each model before scaling/centring. Defined per-model below so
+// assemblies from different CAD pipelines can each be oriented correctly.
+//
+//   PEFC (Fusion 360 export):  rx=-PI/2 stands Z-up upright, ry=PI/2 yaws to face viewer.
+//   Candlestick (OpenCASCADE export, Z-up): rx=-PI/2 stands it upright; no yaw needed.
+//
+// Fallback used if a model omits `orient`:
+const DEFAULT_ORIENT = { rx: -Math.PI / 2, ry: Math.PI / 2, rz: 0 };
+
 const CFG = {
-  explosion:   { name: 'Exploded View',                    file: 'pefc-explosion.glb'   },
-  complete:    { name: 'Complete Assembly',                 file: 'pefc-complete.glb'    },
-  candlestick: { name: 'QENS Candlestick — IRIS',     file: 'GKD-000091_IRIS_CANDLESTICK_ASSEMBLY_CONCEPT_KF16_PORTS.glb'      },
+  explosion:   { name: 'Exploded View',           file: 'pefc-explosion.glb', orient: { rx: -Math.PI / 2, ry: Math.PI / 2, rz: 0 } },
+  complete:    { name: 'Complete Assembly',        file: 'pefc-complete.glb',  orient: { rx: -Math.PI / 2, ry: Math.PI / 2, rz: 0 } },
+  candlestick: { name: 'QENS Candlestick — IRIS', file: 'GKD-000091_IRIS_CANDLESTICK_ASSEMBLY_CONCEPT_KF16_PORTS.glb', orient: { rx: -Math.PI / 2, ry: 0, rz: 0 } },
 };
 
-// ── ORIENTATION ─────────────────────────────────────────
-// Fusion 360 is Z-up. Three.js is Y-up.
-// Applying Rx = -PI/2 maps Fusion's Z → Three's Y.
-// Result: Swageloks on top (+Y), beam axis along Z. ✓ QENS convention.
-// No Ry rotation so the cell faces the viewer along -Z (natural camera view).
-const MODEL_RX = -Math.PI / 2;
-const MODEL_RY = 0;
-const MODEL_RZ = 0;
+// Resolve a model's orientation, falling back to the default if unset.
+function getOrient(key) {
+  const o = (CFG[key] && CFG[key].orient) || DEFAULT_ORIENT;
+  return { rx: o.rx ?? 0, ry: o.ry ?? 0, rz: o.rz ?? 0 };
+}
 
 // ── COMPONENT NODE MAPPING ──────────────────────────────
 // Each key maps to substrings tested against GLB node names (case-sensitive, partial match)
@@ -738,9 +747,10 @@ function showLanding() {
 // ═══════════════════════════════════════════════════════════
 //  SHARED HELPERS
 // ═══════════════════════════════════════════════════════════
-function normaliseModel(model, targetSize) {
+function normaliseModel(model, targetSize, orient) {
   // Apply rotation first so the bounding box is computed in the final orientation
-  model.rotation.set(MODEL_RX, MODEL_RY, MODEL_RZ);
+  const o = orient || DEFAULT_ORIENT;
+  model.rotation.set(o.rx, o.ry, o.rz);
   const box  = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const sc   = targetSize / Math.max(size.x, size.y, size.z, 0.001);
@@ -957,7 +967,7 @@ function loadGLB3(key) {
       const model = gltf.scene;
 
       applyMaterials(model);
-      normaliseModel(model, 12);
+      normaliseModel(model, 12, getOrient(key));
       topGroups3 = buildGroups(model, activeCompNodes);
       xparts3    = buildXplodeParts(model, topGroups3);
       glbRoot3   = model;
@@ -1282,7 +1292,8 @@ function loadGLBForAR() {
       const model = gltf.scene;
 
       // Normalise size (8 units looks good against real background)
-      model.rotation.set(MODEL_RX, MODEL_RY, MODEL_RZ);
+      const arOrient = getOrient(currentModel);
+      model.rotation.set(arOrient.rx, arOrient.ry, arOrient.rz);
       const box  = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
       const sc   = 8 / Math.max(size.x, size.y, size.z, 0.001);
